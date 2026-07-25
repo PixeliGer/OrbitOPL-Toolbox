@@ -1,0 +1,57 @@
+import { ipcMain } from "electron";
+import { importPs2CdGame } from "../services/cd-import.service";
+import { importPs1Game } from "../services/ps1-import.service";
+import { importApp } from "../services/apps.service";
+
+export function registerImportIpc(): void {
+  ipcMain.handle(
+    "import-ps2-cd-game",
+    async (
+      event,
+      cueFilePath: string,
+      oplRoot: string,
+      gameId: string | undefined,
+      gameName: string | undefined,
+      downloadArtwork: boolean
+    ) => {
+      return importPs2CdGame(
+        cueFilePath,
+        oplRoot,
+        gameId,
+        gameName,
+        downloadArtwork,
+        (percent, stage) => {
+          event.sender.send("ps2-cd-import-progress", { percent, stage });
+        }
+      );
+    }
+  );
+
+  ipcMain.handle(
+    "import-ps1-game",
+    async (
+      event,
+      cueFilePath: string,
+      oplRoot: string,
+      elfPrefix: string,
+      downloadArtwork: boolean
+    ) => {
+      return importPs1Game(
+        cueFilePath,
+        oplRoot,
+        elfPrefix,
+        downloadArtwork,
+        (percent, stage) => {
+          event.sender.send("ps1-import-progress", { percent, stage });
+        }
+      );
+    }
+  );
+
+  ipcMain.handle(
+    "import-app",
+    async (_event, oplRoot: string, elfPath: string, title: string) => {
+      return importApp(oplRoot, elfPath, title);
+    }
+  );
+}

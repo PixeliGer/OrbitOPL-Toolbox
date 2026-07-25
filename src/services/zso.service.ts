@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import * as lz4 from "lz4js";
-import { createLogger, formatBytes } from "./logger";
+import { createLogger, formatBytes } from "../logger";
 
 const log = createLogger("zso");
 
@@ -55,7 +55,7 @@ export async function compressIsoToZso(
   isoPath: string,
   zsoPath: string,
   deleteOriginal: boolean,
-  onProgress?: (percent: number, stage: string) => void
+  onProgress?: (percent: number, stage: string) => void,
 ): Promise<ZsoResult> {
   let input: fs.FileHandle | null = null;
   let output: fs.FileHandle | null = null;
@@ -77,11 +77,11 @@ export async function compressIsoToZso(
 
     log.info(
       `Compressing ISO → ZSO: ${isoPath} (${formatBytes(totalBytes)}, ` +
-        `${numBlocks} × ${BLOCK_SIZE}B blocks)`
+        `${numBlocks} × ${BLOCK_SIZE}B blocks)`,
     );
     log.verbose(
       `ZISO params: align=${align} (unit ${1 << align}B), index ${formatBytes(indexSize)}, ` +
-        `output ${zsoPath}`
+        `output ${zsoPath}`,
     );
 
     output = await fs.open(zsoPath, "w");
@@ -105,7 +105,7 @@ export async function compressIsoToZso(
         readBuf,
         0,
         readBuf.length,
-        readPos
+        readPos,
       );
       if (bytesRead === 0) break;
 
@@ -116,12 +116,7 @@ export async function compressIsoToZso(
 
         // Copy the block, zero-padding the final short block to BLOCK_SIZE.
         blockBuf.fill(0);
-        readBuf.copy(
-          blockBuf,
-          0,
-          chunkOffset,
-          chunkOffset + thisBlockBytes
-        );
+        readBuf.copy(blockBuf, 0, chunkOffset, chunkOffset + thisBlockBytes);
 
         hashTable.fill(0);
         const compSize = lz4.compressBlock(
@@ -129,7 +124,7 @@ export async function compressIsoToZso(
           compBuf,
           0,
           BLOCK_SIZE,
-          hashTable
+          hashTable,
         );
 
         const alignedPos = alignUp(writePos, align);
@@ -148,7 +143,7 @@ export async function compressIsoToZso(
           Buffer.from(stored.buffer, stored.byteOffset, stored.length),
           0,
           stored.length,
-          alignedPos
+          alignedPos,
         );
 
         let entry = Math.floor(alignedPos / Math.pow(2, align));
@@ -171,7 +166,7 @@ export async function compressIsoToZso(
         lastVerboseMilestone = percent - (percent % 25);
         log.verbose(
           `ZSO compression ${lastVerboseMilestone}% — ${blockIndex}/${numBlocks} blocks, ` +
-            `${formatBytes(writePos)} written so far`
+            `${formatBytes(writePos)} written so far`,
         );
       }
     }
@@ -194,7 +189,7 @@ export async function compressIsoToZso(
     const indexBuf = Buffer.from(
       index.buffer,
       index.byteOffset,
-      index.byteLength
+      index.byteLength,
     );
     await output.write(indexBuf, 0, indexBuf.length, HEADER_SIZE);
 
@@ -209,7 +204,9 @@ export async function compressIsoToZso(
 
     if (deleteOriginal) {
       await fs.unlink(isoPath);
-      log.verbose(`Deleted source ISO after successful compression: ${isoPath}`);
+      log.verbose(
+        `Deleted source ISO after successful compression: ${isoPath}`,
+      );
     }
 
     if (onProgress) onProgress(100, "ZSO complete");
@@ -217,7 +214,7 @@ export async function compressIsoToZso(
     const ratio = ((compressedBytes / totalBytes) * 100).toFixed(1);
     log.info(
       `ZSO complete: ${formatBytes(totalBytes)} → ${formatBytes(compressedBytes)} ` +
-        `(${ratio}% of original, saved ${formatBytes(totalBytes - compressedBytes)})`
+        `(${ratio}% of original, saved ${formatBytes(totalBytes - compressedBytes)})`,
     );
 
     return {
@@ -246,7 +243,7 @@ export async function compressIsoToZso(
 function decompressLz4BlockBounded(
   src: Buffer,
   dst: Buffer,
-  dstLen: number
+  dstLen: number,
 ): void {
   const MIN_MATCH = 4;
   let s = 0;
@@ -304,7 +301,7 @@ export interface ZsoStreamResult {
 export async function streamZsoContents(
   filepath: string,
   onData: (chunk: Buffer) => boolean | void,
-  maxBytes: number = Number.POSITIVE_INFINITY
+  maxBytes: number = Number.POSITIVE_INFINITY,
 ): Promise<ZsoStreamResult> {
   let handle: fs.FileHandle | null = null;
 
@@ -332,7 +329,7 @@ export async function streamZsoContents(
     log.verbose(
       `Streaming ZISO ${filepath}: ${formatBytes(totalBytes)} uncompressed, ` +
         `${numBlocks} blocks of ${blockSize}B, align=${align}` +
-        (Number.isFinite(maxBytes) ? `, cap ${formatBytes(maxBytes)}` : "")
+        (Number.isFinite(maxBytes) ? `, cap ${formatBytes(maxBytes)}` : ""),
     );
     const indexSize = (numBlocks + 1) * 4;
     const indexBuf = Buffer.alloc(indexSize);

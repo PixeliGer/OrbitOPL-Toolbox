@@ -1,5 +1,5 @@
-import PackageInfo from "../package.json";
-import { createLogger } from "./logger";
+import PackageInfo from "../../package.json";
+import { createLogger } from "../logger";
 
 const log = createLogger("update");
 

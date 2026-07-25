@@ -1,16 +1,14 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import path from "path";
-import { mergeMultiBin } from "./binmerge";
-import { convertToVcd } from "./cue2pops";
-import { parseCueSheet, getCueDirectory } from "./cue-parser";
-import {
-  tryDeterminePs1GameIdFromHex,
-  downloadArtByGameId,
-  sanitizeGameFilename,
-  describeFileAccessError,
-} from "./library.service";
-import { createLogger } from "./logger";
+import { mergeMultiBin } from "../utils/binmerge";
+import { convertToVcd } from "../utils/cue2pops";
+import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
+import { tryDeterminePs1GameIdFromHex } from "./game-id-resolver.service";
+import { downloadArtByGameId } from "./artwork.service";
+import { sanitizeGameFilename } from "../utils/sanitize";
+import { describeFileAccessError } from "../utils/file-access-error";
+import { createLogger } from "../logger";
 
 const log = createLogger("ps1-import");
 
