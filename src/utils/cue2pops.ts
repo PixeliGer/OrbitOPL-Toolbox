@@ -1,6 +1,5 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
-import path from "path";
 import {
   parseCueSheet,
   msfToSectors,

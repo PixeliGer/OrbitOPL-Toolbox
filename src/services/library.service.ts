@@ -1,4 +1,4 @@
-import { dialog, OpenDialogOptions } from "electron";
+import { dialog } from "electron";
 import * as fs from "fs/promises";
 import path from "path";
 import { createLogger, formatBytes } from "../logger";

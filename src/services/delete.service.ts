@@ -1,7 +1,6 @@
 import * as fs from "fs/promises";
 import path from "path";
 import { createLogger } from "../logger";
-import { resolveEntryType } from "../utils/fs-entry";
 
 const log = createLogger("delete");
 

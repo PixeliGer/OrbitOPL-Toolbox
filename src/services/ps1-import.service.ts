@@ -1,5 +1,4 @@
 import * as fs from "fs/promises";
-import * as fsSync from "fs";
 import path from "path";
 import { mergeMultiBin } from "../utils/binmerge";
 import { convertToVcd } from "../utils/cue2pops";
