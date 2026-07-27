@@ -9,7 +9,7 @@ import {
   sectorsToMsf,
   CueSheet,
 } from "./cue-parser";
-import { createLogger, formatBytes } from "./logger";
+import { createLogger, formatBytes } from "../logger";
 
 const log = createLogger("binmerge");
 

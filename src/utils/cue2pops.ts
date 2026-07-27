@@ -1,6 +1,5 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
-import path from "path";
 import {
   parseCueSheet,
   msfToSectors,
@@ -8,7 +7,7 @@ import {
   CueSheet,
   CueTrack,
 } from "./cue-parser";
-import { createLogger, formatBytes } from "./logger";
+import { createLogger, formatBytes } from "../logger";
 
 const log = createLogger("cue2pops");
 

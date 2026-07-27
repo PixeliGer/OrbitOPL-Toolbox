@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import path from "path";
-import { createLogger } from "./logger";
-import { isDirectoryEntry, resolveEntryType } from "./fs-entry";
+import { createLogger } from "../logger";
+import { isDirectoryEntry, resolveEntryType } from "../utils/fs-entry";
 
 const log = createLogger("apps");
 

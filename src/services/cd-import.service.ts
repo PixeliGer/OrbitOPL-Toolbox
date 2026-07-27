@@ -1,13 +1,11 @@
 import * as fs from "fs/promises";
 import path from "path";
-import { mergeMultiBin } from "./binmerge";
-import { parseCueSheet, getCueDirectory } from "./cue-parser";
-import {
-  tryDetermineGameIdFromHex,
-  downloadArtByGameId,
-  sanitizeGameFilename,
-} from "./library.service";
-import { createLogger, formatBytes } from "./logger";
+import { mergeMultiBin } from "../utils/binmerge";
+import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
+import { tryDetermineGameIdFromHex } from "./game-id-resolver.service";
+import { downloadArtByGameId } from "./artwork.service";
+import { sanitizeGameFilename } from "../utils/sanitize";
+import { createLogger, formatBytes } from "../logger";
 
 const log = createLogger("cd-import");
 
