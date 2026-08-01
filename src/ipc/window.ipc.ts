@@ -41,10 +41,42 @@ function detectWindowControls(): { canMinimize: boolean; canMaximize: boolean } 
     : { canMinimize: true, canMaximize: true };
 }
 
+function detectWmInfo(): { name: string; env: Record<string, string> } {
+  if (process.platform !== "linux") {
+    return { name: "", env: {} };
+  }
+
+  const env: Record<string, string> = {
+    XDG_CURRENT_DESKTOP: process.env.XDG_CURRENT_DESKTOP ?? "",
+    DESKTOP_SESSION: process.env.DESKTOP_SESSION ?? "",
+    XDG_SESSION_DESKTOP: process.env.XDG_SESSION_DESKTOP ?? "",
+    GDMSESSION: process.env.GDMSESSION ?? "",
+  };
+
+  const candidates = [
+    env.XDG_CURRENT_DESKTOP,
+    env.XDG_SESSION_DESKTOP,
+    env.DESKTOP_SESSION,
+    env.GDMSESSION,
+  ];
+
+  let name = "";
+  for (const candidate of candidates) {
+    if (candidate) {
+      name = candidate.split(":")[0].trim();
+      break;
+    }
+  }
+
+  return { name, env };
+}
+
 export function registerWindowIpc(): void {
   ipcMain.handle("window-platform", () => process.platform);
 
   ipcMain.handle("window-can-window-controls", () => detectWindowControls());
+
+  ipcMain.handle("window-wm-info", () => detectWmInfo());
 
   ipcMain.on("window-minimize", (event) => {
     BrowserWindow.fromWebContents(event.sender)?.minimize();

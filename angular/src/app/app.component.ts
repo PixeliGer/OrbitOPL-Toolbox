@@ -30,7 +30,7 @@ export class AppComponent {
     private readonly _logger: LogsService,
     public readonly _libraryService: LibraryService,
     public readonly _updateService: UpdateService
-  ) {}
+  ) { }
 
   ngOnInit() {
     const os = window.navigator.platform;
@@ -39,6 +39,16 @@ export class AppComponent {
       'AppComponent',
       `App initialized (${PackageInfo.version}) [OS: ${os}]`
     );
+
+    window.windowAPI.wmInfo().then((info) => {
+      console.log('Window Manager Info:', info);
+      if (info.name) {
+        this._logger.log(
+          'AppComponent',
+          `Desktop environment: ${info.name}`
+        );
+      }
+    });
 
     this._libraryService.restoreLastDirectory();
 

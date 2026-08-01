@@ -372,6 +372,9 @@ declare interface Window {
     /** Whether the platform WM supports minimize and maximize (false on tiling WMs). */
     canWindowControls: () => Promise<{ canMinimize: boolean; canMaximize: boolean }>;
 
+    /** Detected desktop environment or window manager on Linux (empty on other platforms). */
+    wmInfo: () => Promise<{ name: string; env: Record<string, string> }>;
+
     /** Minimize the current window. */
     minimize: () => void;
 
