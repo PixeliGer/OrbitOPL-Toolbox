@@ -1,4 +1,10 @@
-import { ChangeDetectorRef, Component, DestroyRef, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  inject,
+  OnInit,
+} from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { BuildInfo } from '../../build-info';
 
@@ -38,7 +44,7 @@ export class TitleBarComponent implements OnInit {
     });
 
     this._destroyRef.onDestroy(() =>
-      window.windowAPI.removeAllMaximizedChangeListeners()
+      window.windowAPI.removeAllMaximizedChangeListeners(),
     );
   }
 

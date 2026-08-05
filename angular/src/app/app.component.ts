@@ -29,23 +29,20 @@ export class AppComponent {
   constructor(
     private readonly _logger: LogsService,
     public readonly _libraryService: LibraryService,
-    public readonly _updateService: UpdateService
-  ) { }
+    public readonly _updateService: UpdateService,
+  ) {}
 
   ngOnInit() {
     const os = window.navigator.platform;
 
     this._logger.log(
       'AppComponent',
-      `App initialized (${BuildInfo.version}) [OS: ${os}]`
+      `App initialized (${BuildInfo.version}) [OS: ${os}]`,
     );
 
     window.windowAPI.wmInfo().then((info) => {
       if (info.name) {
-        this._logger.log(
-          'AppComponent',
-          `Desktop environment: ${info.name}`
-        );
+        this._logger.log('AppComponent', `Desktop environment: ${info.name}`);
       }
     });
 
