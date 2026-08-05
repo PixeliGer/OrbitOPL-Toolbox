@@ -1,6 +1,6 @@
-import { Component, DestroyRef, ChangeDetectorRef, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject, OnInit } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
-import PackageInfo from '../../../../../../package.json';
+import { BuildInfo } from '../../build-info';
 
 @Component({
   selector: 'app-title-bar',
@@ -11,29 +11,27 @@ import PackageInfo from '../../../../../../package.json';
 export class TitleBarComponent implements OnInit {
   private readonly _destroyRef = inject(DestroyRef);
   private readonly _cdr = inject(ChangeDetectorRef);
-  public readonly version = PackageInfo.version;
+  public readonly version = BuildInfo.version;
   public visible = false;
   public maximized = false;
   public canMinimize = false;
   public canMaximize = false;
 
   ngOnInit() {
-    window.windowAPI.platform().then((platform) => {
+    void Promise.all([
+      window.windowAPI.platform(),
+      window.windowAPI.canWindowControls(),
+      window.windowAPI.isMaximized(),
+    ]).then(([platform, { canMinimize, canMaximize }, maximized]) => {
       // macOS keeps its native frame/traffic lights; only draw our own
       // title bar where the main process created a frameless window.
       this.visible = platform !== 'darwin';
-      this._cdr.detectChanges();
-    });
-
-    window.windowAPI.canWindowControls().then(({ canMinimize, canMaximize }) => {
       this.canMinimize = canMinimize;
       this.canMaximize = canMaximize;
+      this.maximized = maximized;
       this._cdr.detectChanges();
     });
 
-    window.windowAPI.isMaximized().then((isMaximized) => {
-      this.maximized = isMaximized;
-    });
     window.windowAPI.onMaximizedChange((isMaximized) => {
       this.maximized = isMaximized;
       this._cdr.detectChanges();

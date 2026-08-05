@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { LogsService } from './shared/services/logs.service';
-import PackageInfo from '../../../package.json';
+import { BuildInfo } from './shared/build-info';
 import { LibraryService } from './shared/services/library.service';
 import { AsyncPipe } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
@@ -25,7 +25,7 @@ import { UpdateService } from './shared/services/update.service';
 })
 export class AppComponent {
   public currentDirectory = 'None';
-  public readonly version = PackageInfo.version;
+  public readonly version = BuildInfo.version;
   constructor(
     private readonly _logger: LogsService,
     public readonly _libraryService: LibraryService,
@@ -37,11 +37,10 @@ export class AppComponent {
 
     this._logger.log(
       'AppComponent',
-      `App initialized (${PackageInfo.version}) [OS: ${os}]`
+      `App initialized (${BuildInfo.version}) [OS: ${os}]`
     );
 
     window.windowAPI.wmInfo().then((info) => {
-      console.log('Window Manager Info:', info);
       if (info.name) {
         this._logger.log(
           'AppComponent',
