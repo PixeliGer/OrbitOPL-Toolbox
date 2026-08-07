@@ -299,6 +299,8 @@ function buildLibraryAPI() {
 function buildWindowAPI() {
   return {
     platform: () => ipcRenderer.invoke("window-platform"),
+    canWindowControls: () => ipcRenderer.invoke("window-can-window-controls"),
+    wmInfo: () => ipcRenderer.invoke("window-wm-info"),
     minimize: () => ipcRenderer.send("window-minimize"),
     maximizeToggle: () => ipcRenderer.send("window-maximize-toggle"),
     close: () => ipcRenderer.send("window-close"),

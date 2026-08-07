@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { LogsService } from './shared/services/logs.service';
-import PackageInfo from '../../../package.json';
+import { BuildInfo } from './shared/build-info';
 import { LibraryService } from './shared/services/library.service';
 import { AsyncPipe } from '@angular/common';
 import { LucideAngularModule } from 'lucide-angular';
@@ -25,11 +25,11 @@ import { UpdateService } from './shared/services/update.service';
 })
 export class AppComponent {
   public currentDirectory = 'None';
-  public readonly version = PackageInfo.version;
+  public readonly version = BuildInfo.version;
   constructor(
     private readonly _logger: LogsService,
     public readonly _libraryService: LibraryService,
-    public readonly _updateService: UpdateService
+    public readonly _updateService: UpdateService,
   ) {}
 
   ngOnInit() {
@@ -37,8 +37,14 @@ export class AppComponent {
 
     this._logger.log(
       'AppComponent',
-      `App initialized (${PackageInfo.version}) [OS: ${os}]`
+      `App initialized (${BuildInfo.version}) [OS: ${os}]`,
     );
+
+    window.windowAPI.wmInfo().then((info) => {
+      if (info.name) {
+        this._logger.log('AppComponent', `Desktop environment: ${info.name}`);
+      }
+    });
 
     this._libraryService.restoreLastDirectory();
 

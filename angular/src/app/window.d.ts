@@ -369,6 +369,12 @@ declare interface Window {
     /** Node's `process.platform` for the main process (e.g. 'win32', 'linux', 'darwin'). */
     platform: () => Promise<NodeJS.Platform>;
 
+    /** Whether the platform WM supports minimize and maximize (false on tiling WMs). */
+    canWindowControls: () => Promise<{ canMinimize: boolean; canMaximize: boolean }>;
+
+    /** Detected desktop environment or window manager on Linux (empty on other platforms). */
+    wmInfo: () => Promise<{ name: string; env: Record<string, string> }>;
+
     /** Minimize the current window. */
     minimize: () => void;
 
