@@ -6,6 +6,11 @@ import {
   artTypeLabel,
 } from '@shared/constants/artwork-presets';
 
+export interface ArtworkBulkConfirmEvent {
+  artTypes: string[];
+  skipExisting: boolean;
+}
+
 @Component({
   selector: 'app-artwork-bulk-dialog',
   imports: [LucideAngularModule],
@@ -14,7 +19,7 @@ import {
 })
 export class ArtworkBulkDialogComponent {
   readonly gameCount = input.required<number>();
-  readonly confirm = output<string[]>();
+  readonly confirm = output<ArtworkBulkConfirmEvent>();
   readonly closed = output<void>();
 
   readonly presets = ARTWORK_PRESETS;
@@ -22,6 +27,7 @@ export class ArtworkBulkDialogComponent {
   readonly artTypeLabel = artTypeLabel;
 
   readonly selected = signal<Set<string>>(new Set(['COV', 'ICO', 'SCR']));
+  readonly skipExisting = signal(false);
   readonly selectedCount = computed(() => this.selected().size);
 
   isSelected(type: string): boolean {
@@ -50,7 +56,7 @@ export class ArtworkBulkDialogComponent {
   submit(): void {
     const types = Array.from(this.selected());
     if (types.length === 0) return;
-    this.confirm.emit(types);
+    this.confirm.emit({ artTypes: types, skipExisting: this.skipExisting() });
   }
 
   close(): void {

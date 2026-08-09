@@ -53,6 +53,17 @@
       <i-lucide name="info" size="13"></i-lucide>
       Types missing from the art database for a given game are skipped automatically.
     </p>
+
+    <label class="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        class="checkbox checkbox-sm checkbox-primary"
+        [checked]="skipExisting()"
+        (change)="skipExisting.set(!skipExisting())"
+      />
+      <span class="text-xs text-base-content/70">Skip existing artwork</span>
+      <span class="text-[0.65rem] text-base-content/40">— don't prompt to overwrite, just skip types already on disk</span>
+    </label>
   </div>
 
   <div class="flex items-center justify-between gap-2 border-t border-base-content/10 px-5 py-3">

@@ -5,7 +5,10 @@ import {
   GamecardViewMode,
 } from './components/gamecard/gamecard.component';
 import { LibraryRenameDialogComponent } from './components/rename-dialog/rename-dialog.component';
-import { ArtworkBulkDialogComponent } from './components/artwork-bulk-dialog/artwork-bulk-dialog.component';
+import {
+  ArtworkBulkDialogComponent,
+  ArtworkBulkConfirmEvent,
+} from './components/artwork-bulk-dialog/artwork-bulk-dialog.component';
 import { LibraryService } from '../../shared/services/library.service';
 import { JobsService } from '../../shared/services/jobs.service';
 import { AsyncPipe } from '@angular/common';
@@ -67,7 +70,7 @@ export class LibraryComponent {
   }
 
   /** Queues an artwork-download job for each bulk-wizard target with the chosen types. */
-  onArtworkBulkConfirm(artTypes: string[]) {
+  onArtworkBulkConfirm({ artTypes, skipExisting }: ArtworkBulkConfirmEvent) {
     this._jobs.enqueue(
       this.artworkBulkTargets.map((g) => ({
         type: 'artwork',
@@ -77,6 +80,7 @@ export class LibraryComponent {
         gameName: g.title || '',
         downloadArtwork: false,
         system: g.system === 'PS1' ? 'PS1' : 'PS2',
+        skipExisting,
         artTypes,
       }))
     );

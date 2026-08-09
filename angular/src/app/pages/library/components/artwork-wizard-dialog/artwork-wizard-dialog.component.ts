@@ -32,6 +32,7 @@ export class ArtworkWizardDialogComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly options = signal<ArtworkOption[]>([]);
   readonly selected = signal<Set<string>>(new Set());
+  readonly skipExisting = signal(false);
 
   readonly selectedCount = computed(() => this.selected().size);
 
@@ -130,6 +131,7 @@ export class ArtworkWizardDialogComponent {
         system: this.system,
         saveAsName: this.isPs1Launcher ? g.ps1LauncherBoot : undefined,
         artTypes: types,
+        skipExisting: this.skipExisting(),
       },
     ]);
     this.close();

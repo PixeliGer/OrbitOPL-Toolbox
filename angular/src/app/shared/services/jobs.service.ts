@@ -34,6 +34,8 @@ export interface ImportJob {
   system?: 'PS1' | 'PS2';
   /** Artwork only: which art types to fetch (defaults to COV/ICO/SCR). */
   artTypes?: string[];
+  /** Artwork only: silently drop already-saved types instead of prompting to overwrite. */
+  skipExisting?: boolean;
   /** ZSO only: remove the source ISO once compression succeeds. */
   deleteOriginal?: boolean;
   /**
@@ -297,39 +299,63 @@ export class JobsService {
 
     let shouldDownload = true;
     let isOverwrite = false;
+    let downloadTypes = types;
 
     if (existing.length > 0) {
-      const remembered = this.batchOverwriteDecisions.get(job.batchId);
-      let confirmed: boolean;
-
-      if (remembered !== undefined) {
-        confirmed = remembered;
+      if (job.skipExisting) {
+        const alreadySaved = types.filter((t) =>
+          existing.includes(`${localName}_${t}.png`),
+        );
+        downloadTypes = types.filter((t) => !alreadySaved.includes(t));
         this._logger.log(
           'jobsService',
-          `Reusing batch overwrite decision for "${job.label}": confirmed=${confirmed}`,
+          `Skipping ${alreadySaved.length} already-saved type(s) for "${job.label}": [${alreadySaved.join(', ')}]`,
         );
-      } else {
-        const result = await this._confirm.confirmWithCheckbox({
-          title: 'Overwrite Artwork',
-          message: `Artwork already exists for "${job.label}". Overwrite?`,
-          detail: existing.join('\n'),
-          confirmLabel: 'Overwrite',
-          toggleLabel: "Don't ask again for this batch",
-        });
-        confirmed = result.confirmed;
-        if (result.checked) {
-          this.batchOverwriteDecisions.set(job.batchId, confirmed);
+
+        if (downloadTypes.length === 0) {
+          this._logger.log(
+            'jobsService',
+            `All selected artwork already exists for "${job.label}" — nothing to download.`,
+          );
+          return {
+            success: true,
+            message: 'Artwork already up to date — nothing to download.',
+            artRefresh: false,
+          };
         }
-        this._logger.log(
-          'jobsService',
-          `Confirm dialog result for "${job.label}": confirmed=${confirmed}, rememberedForBatch=${result.checked}`,
-        );
-      }
-
-      if (confirmed) {
-        isOverwrite = true;
       } else {
-        shouldDownload = false;
+        const remembered = this.batchOverwriteDecisions.get(job.batchId);
+        let confirmed: boolean;
+
+        if (remembered !== undefined) {
+          confirmed = remembered;
+          this._logger.log(
+            'jobsService',
+            `Reusing batch overwrite decision for "${job.label}": confirmed=${confirmed}`,
+          );
+        } else {
+          const result = await this._confirm.confirmWithCheckbox({
+            title: 'Overwrite Artwork',
+            message: `Artwork already exists for "${job.label}". Overwrite?`,
+            detail: existing.join('\n'),
+            confirmLabel: 'Overwrite',
+            toggleLabel: "Don't ask again for this batch",
+          });
+          confirmed = result.confirmed;
+          if (result.checked) {
+            this.batchOverwriteDecisions.set(job.batchId, confirmed);
+          }
+          this._logger.log(
+            'jobsService',
+            `Confirm dialog result for "${job.label}": confirmed=${confirmed}, rememberedForBatch=${result.checked}`,
+          );
+        }
+
+        if (confirmed) {
+          isOverwrite = true;
+        } else {
+          shouldDownload = false;
+        }
       }
     }
 
@@ -348,7 +374,7 @@ export class JobsService {
       job.gameId,
       job.system ?? 'PS2',
       saveAsName,
-      types,
+      downloadTypes,
     );
 
     if (result?.data) {
