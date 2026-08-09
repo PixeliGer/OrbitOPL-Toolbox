@@ -3,7 +3,7 @@ const path = require('path');
 
 const buildDir = path.join(__dirname, '..', 'build');
 const outputDir = path.join(buildDir, 'release');
-const extensions = ['.exe', '.dmg', '.AppImage', '.deb', '.zip'];
+const extensions = ['.exe', '.dmg', '.AppImage', '.deb', '.rpm', '.zip'];
 
 // Unpacked app trees emitted by electron-builder (win-unpacked/, linux-unpacked/,
 // mac/, mac-arm64/). They hold loose executables (the app exe, elevate.exe) that
