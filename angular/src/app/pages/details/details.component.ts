@@ -1,4 +1,4 @@
-import { ApplicationRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { LibraryService } from '@shared/services/library.service';
@@ -22,9 +22,9 @@ import { Game, gameArt } from '@shared/types/game.type';
  *
  * ── Change detection ──────────────────────────────────────────────
  * Uses `ChangeDetectionStrategy.Default` and calls
- * `ApplicationRef.tick()` after every async state assignment because
- * zone.js cannot reliably track Promise microtasks across Electron's
- * `contextBridge` boundary.
+ * `ChangeDetectorRef.detectChanges()` after every async state assignment
+ * because zone.js cannot reliably track Promise microtasks across
+ * Electron's `contextBridge` boundary.
  */
 @Component({
   selector: 'app-details',
@@ -38,7 +38,7 @@ export class DetailsComponent {
   private _library = inject(LibraryService);
   private _cfg = inject(CfgService);
   private _titleCfg = inject(TitleCfgService);
-  private _appRef = inject(ApplicationRef);
+  private _cdr = inject(ChangeDetectorRef);
 
   // ── Component state ───────────────────────────────────────────
 
@@ -81,7 +81,7 @@ export class DetailsComponent {
 
     if (!this.game) {
       this.loading = false;
-      this._appRef.tick();
+      this._cdr.detectChanges();
       return;
     }
 
@@ -99,13 +99,13 @@ export class DetailsComponent {
         });
     }
 
-    // ── Async metadata — fire-and-forget via .then() + ApplicationRef.tick() ──
+    // ── Async metadata — fire-and-forget via .then() + detectChanges() ──
     const root = this._library.currentDirectoryValue;
     if (root) {
       this._loadMetadata(root);
     } else {
       this.loading = false;
-      this._appRef.tick();
+      this._cdr.detectChanges();
     }
   }
 
@@ -120,7 +120,7 @@ export class DetailsComponent {
    * 3. **ELF homebrew** → `title.cfg` (with field restrictions)
    *
    * Every `.then()` callback assigns state directly and calls
-   * `ApplicationRef.tick()` to force Angular change detection,
+   * `ChangeDetectorRef.detectChanges()` to force Angular change detection,
    * bypassing zone.js microtask tracking (which Electron's
    * `contextBridge` cannot reliably trigger).
    */
@@ -142,11 +142,11 @@ export class DetailsComponent {
         this.players = cfg['PlayersText'] || cfg['Players'] || '';
         this._applyFallbackTitle();
         this.loading = false;
-        this._appRef.tick();
+        this._cdr.detectChanges();
       }).catch(() => {
         this._applyFallbackTitle();
         this.loading = false;
-        this._appRef.tick();
+        this._cdr.detectChanges();
       });
       return;
     }
@@ -163,7 +163,7 @@ export class DetailsComponent {
 
     this._applyFallbackTitle();
     this.loading = false;
-    this._appRef.tick();
+    this._cdr.detectChanges();
   }
 
   /**
@@ -186,7 +186,7 @@ export class DetailsComponent {
       if (data.playersText) this.players = data.playersText;
       this._applyFallbackTitle();
       this.loading = false;
-      this._appRef.tick();
+      this._cdr.detectChanges();
     });
   }
 
