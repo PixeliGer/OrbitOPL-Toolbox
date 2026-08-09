@@ -1,0 +1,85 @@
+<div class="aw-backdrop" (click)="close()"></div>
+<div class="aw-modal glass-strong" role="dialog" aria-modal="true">
+  <div class="flex items-center gap-2 border-b border-base-content/10 px-5 py-3">
+    <i-lucide name="image-down" size="18" class="text-accent"></i-lucide>
+    <div class="min-w-0">
+      <h2 class="truncate font-display text-sm font-semibold tracking-wide">
+        Download artwork
+      </h2>
+      <p class="truncate font-mono text-[0.68rem] text-base-content/50">
+        {{ game().title || game().gameId }}
+      </p>
+    </div>
+    <button class="btn btn-ghost btn-xs btn-square ml-auto" (click)="close()">
+      <i-lucide name="x" size="16"></i-lucide>
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="flex items-center justify-center py-12">
+      <span class="loading loading-spinner text-accent"></span>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="flex flex-col items-center gap-2 px-5 py-10 text-center">
+      <i-lucide name="image-off" size="28" class="text-base-content/40"></i-lucide>
+      <p class="text-sm text-base-content/60">{{ errorMessage() }}</p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-base-content/10 px-5 py-3">
+      <button class="btn btn-ghost btn-sm" (click)="close()">Close</button>
+    </div>
+  } @else {
+    <div class="aw-body flex flex-col gap-4 px-5 py-4">
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Presets</legend>
+        <div class="flex flex-wrap gap-2">
+          @for (preset of presets; track preset.id) {
+            <button class="btn btn-xs" (click)="applyPreset(preset.types)">
+              {{ preset.label }}
+            </button>
+          }
+          <button class="btn btn-xs btn-ghost" (click)="selectAll()">All</button>
+          <button class="btn btn-xs btn-ghost" (click)="deselectAll()">None</button>
+        </div>
+      </fieldset>
+
+      <div class="aw-grid">
+        @for (option of options(); track option.type) {
+          <label
+            class="aw-card"
+            [class.is-selected]="isSelected(option.type)"
+          >
+            <input
+              type="checkbox"
+              class="checkbox checkbox-sm checkbox-primary aw-card-checkbox"
+              [checked]="isSelected(option.type)"
+              (change)="toggle(option.type)"
+            />
+            <img [src]="option.downloadUrl" [alt]="option.label" loading="lazy" />
+            <div class="aw-card-meta">
+              <span class="text-xs font-semibold">{{ option.label }}</span>
+              <span class="font-mono text-[0.65rem] text-base-content/50">{{ option.type }}</span>
+            </div>
+            @if (option.alreadySaved) {
+              <span class="aw-card-badge">Saved</span>
+            }
+          </label>
+        }
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between gap-2 border-t border-base-content/10 px-5 py-3">
+      <span class="text-xs text-base-content/50">{{ selectedCount() }} selected</span>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" (click)="close()">Cancel</button>
+        <button
+          class="btn btn-primary btn-sm"
+          [disabled]="selectedCount() === 0"
+          (click)="download()"
+        >
+          <i-lucide name="download" size="15"></i-lucide>
+          Download Selected ({{ selectedCount() }})
+        </button>
+      </div>
+    </div>
+  }
+</div>

@@ -32,6 +32,8 @@ export interface ImportJob {
   elfPrefix?: string;
   /** Artwork only: which art database to pull from (defaults to PS2). */
   system?: 'PS1' | 'PS2';
+  /** Artwork only: which art types to fetch (defaults to COV/ICO/SCR). */
+  artTypes?: string[];
   /** ZSO only: remove the source ISO once compression succeeds. */
   deleteOriginal?: boolean;
   /**
@@ -53,11 +55,21 @@ export interface ImportJob {
   message?: string;
   createdAt: number;
   finishedAt?: number;
+  /** Shared by every job created from the same `enqueue()` call — lets the
+   *  artwork-overwrite prompt's "don't ask again" apply to the rest of the batch. */
+  batchId: string;
 }
 
 export type NewImportJob = Omit<
   ImportJob,
-  'id' | 'status' | 'percent' | 'stage' | 'message' | 'createdAt' | 'finishedAt'
+  | 'id'
+  | 'status'
+  | 'percent'
+  | 'stage'
+  | 'message'
+  | 'createdAt'
+  | 'finishedAt'
+  | 'batchId'
 >;
 
 /**
@@ -86,17 +98,26 @@ export class JobsService {
 
   private isProcessing = false;
 
+  /**
+   * Per-batch "don't ask again" decision for the artwork-overwrite prompt —
+   * set once a user checks the toggle, consumed by the rest of that batch's
+   * artwork jobs, then dropped once the batch has nothing left queued/running.
+   */
+  private readonly batchOverwriteDecisions = new Map<string, boolean>();
+
   constructor(
     private readonly _logger: LogsService,
     private readonly _library: LibraryService,
     private readonly _confirm: ConfirmDialogService,
   ) {}
 
-  /** Queue one or more imports and kick the worker if idle. */
+  /** Queue one or more imports (as a single batch) and kick the worker if idle. */
   public enqueue(jobs: NewImportJob[]): void {
+    const batchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const created: ImportJob[] = jobs.map((job) => ({
       ...job,
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      batchId,
       status: 'queued',
       percent: 0,
       stage: 'Queued',
@@ -198,6 +219,15 @@ export class JobsService {
         `Job threw for ${next.label} (${next.type}): ${error?.message || error}`,
       );
     } finally {
+      const stillPending = this.jobsSubject.value.some(
+        (j) =>
+          j.batchId === next.batchId &&
+          (j.status === 'queued' || j.status === 'running'),
+      );
+      if (!stillPending) {
+        this.batchOverwriteDecisions.delete(next.batchId);
+      }
+
       this.isProcessing = false;
       // Process the rest of the queue on the next tick.
       setTimeout(() => void this.processNext(), 0);
@@ -247,7 +277,7 @@ export class JobsService {
     const artDir = `${dirPath}/ART`;
     const saveAsName = job.saveAsName;
     const localName = saveAsName || job.gameId;
-    const types = ['COV', 'ICO', 'SCR'];
+    const types = job.artTypes?.length ? job.artTypes : ['COV', 'ICO', 'SCR'];
     const expectedFiles = types.map((t) => `${localName}_${t}.png`);
 
     this._logger.log(
@@ -269,16 +299,33 @@ export class JobsService {
     let isOverwrite = false;
 
     if (existing.length > 0) {
-      const confirmed = await this._confirm.confirm({
-        title: 'Overwrite Artwork',
-        message: `Artwork already exists for "${job.label}". Overwrite?`,
-        detail: existing.join('\n'),
-        confirmLabel: 'Overwrite',
-      });
-      this._logger.log(
-        'jobsService',
-        `Confirm dialog result for "${job.label}": confirmed=${confirmed}`,
-      );
+      const remembered = this.batchOverwriteDecisions.get(job.batchId);
+      let confirmed: boolean;
+
+      if (remembered !== undefined) {
+        confirmed = remembered;
+        this._logger.log(
+          'jobsService',
+          `Reusing batch overwrite decision for "${job.label}": confirmed=${confirmed}`,
+        );
+      } else {
+        const result = await this._confirm.confirmWithCheckbox({
+          title: 'Overwrite Artwork',
+          message: `Artwork already exists for "${job.label}". Overwrite?`,
+          detail: existing.join('\n'),
+          confirmLabel: 'Overwrite',
+          toggleLabel: "Don't ask again for this batch",
+        });
+        confirmed = result.confirmed;
+        if (result.checked) {
+          this.batchOverwriteDecisions.set(job.batchId, confirmed);
+        }
+        this._logger.log(
+          'jobsService',
+          `Confirm dialog result for "${job.label}": confirmed=${confirmed}, rememberedForBatch=${result.checked}`,
+        );
+      }
+
       if (confirmed) {
         isOverwrite = true;
       } else {
@@ -301,6 +348,7 @@ export class JobsService {
       job.gameId,
       job.system ?? 'PS2',
       saveAsName,
+      types,
     );
 
     if (result?.data) {

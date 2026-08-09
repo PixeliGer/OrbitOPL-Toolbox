@@ -34,17 +34,21 @@ function buildLibraryAPI() {
       dirPath: string,
       gameId: string,
       system?: "PS1" | "PS2",
-      saveAsName?: string
+      saveAsName?: string,
+      artTypes?: string[]
     ) =>
       ipcRenderer.invoke(
         "download-art-by-gameid",
         dirPath,
         gameId,
         system,
-        saveAsName
+        saveAsName,
+        artTypes
       ),
     checkArtFilesExist: (artDir: string, filenames: string[]) =>
       ipcRenderer.invoke("check-art-files-exist", artDir, filenames),
+    listAvailableArt: (gameId: string, system?: "PS1" | "PS2") =>
+      ipcRenderer.invoke("list-available-art", gameId, system),
 
     // ── Rename ─────────────────────────────────────
     renameGamefile: (

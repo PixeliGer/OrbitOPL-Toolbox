@@ -17,6 +17,7 @@ import { GameCfgDialogComponent } from '../game-cfg-dialog/game-cfg-dialog.compo
 import { LibraryRenameDialogComponent } from '../rename-dialog/rename-dialog.component';
 import { Ps1DeleteDialogComponent } from '../ps1-delete-dialog/ps1-delete-dialog.component';
 import { AppDeleteDialogComponent } from '../app-delete-dialog/app-delete-dialog.component';
+import { ArtworkWizardDialogComponent } from '../artwork-wizard-dialog/artwork-wizard-dialog.component';
 
 export type GamecardViewMode = 'grid' | 'list';
 
@@ -35,6 +36,7 @@ export type GamecardViewMode = 'grid' | 'list';
     LibraryRenameDialogComponent,
     Ps1DeleteDialogComponent,
     AppDeleteDialogComponent,
+    ArtworkWizardDialogComponent,
   ],
   templateUrl: './gamecard.component.html',
   styleUrl: './gamecard.component.scss',
@@ -140,6 +142,9 @@ export class GamecardComponent {
   /** Whether the App delete-progress dialog is open. */
   public showAppDeleteDialog = false;
 
+  /** Whether the artwork wizard dialog is open. */
+  public showArtworkWizard = false;
+
   /** Whether the user opted to delete artwork alongside the game. */
   public deleteArtwork = false;
 
@@ -167,25 +172,15 @@ export class GamecardComponent {
   }
 
   /**
-   * Enqueue an artwork-fetch job for this game.
+   * Open the artwork wizard for this game.
    * Regular ELF apps are skipped — they have no artwork source.
    */
   fetchArtwork() {
     const g = this.game();
     if (!g) return;
     if (this.isApp()) return;
-    this._jobs.enqueue([
-      {
-        type: 'artwork',
-        label: g.title || g.gameId || g.filename,
-        filePath: g.path,
-        gameId: g.gameId,
-        gameName: g.title || '',
-        downloadArtwork: false,
-        system: g.system === 'PS1' || this.isPs1LauncherApp() ? 'PS1' : 'PS2',
-        saveAsName: this.isPs1LauncherApp() ? g.ps1LauncherBoot : undefined,
-      },
-    ]);
+    this.showArtworkWizard = true;
+    this._cdr.markForCheck();
   }
 
   /** Enqueue a ZSO compression job for a PS2 ISO. */

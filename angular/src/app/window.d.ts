@@ -87,6 +87,7 @@ declare interface Window {
       gameId: string,
       system?: 'PS1' | 'PS2',
       saveAsName?: string,
+      artTypes?: string[],
     ) => Promise<any>;
 
     /** Check which of the given filenames exist in the art directory. */
@@ -94,6 +95,16 @@ declare interface Window {
       artDir: string,
       filenames: string[],
     ) => Promise<string[]>;
+
+    /** List the artwork actually available for a game in the art database. */
+    listAvailableArt: (
+      gameId: string,
+      system?: 'PS1' | 'PS2',
+    ) => Promise<{
+      success: boolean;
+      data: { type: string; fileName: string; downloadUrl: string }[];
+      message?: string;
+    }>;
 
     /** Try to determine a game ID from a binary file via hex patterns. */
     tryDetermineGameIdFromHex: (filepath: string) => Promise<any>;

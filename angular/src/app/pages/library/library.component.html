@@ -201,3 +201,11 @@
     (closed)="showRenameDialog = false"
   ></app-library-rename-dialog>
 }
+
+@if (showArtworkBulkDialog) {
+  <app-artwork-bulk-dialog
+    [gameCount]="artworkBulkTargets.length"
+    (confirm)="onArtworkBulkConfirm($event)"
+    (closed)="showArtworkBulkDialog = false"
+  ></app-artwork-bulk-dialog>
+}

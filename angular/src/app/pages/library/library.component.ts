@@ -5,6 +5,7 @@ import {
   GamecardViewMode,
 } from './components/gamecard/gamecard.component';
 import { LibraryRenameDialogComponent } from './components/rename-dialog/rename-dialog.component';
+import { ArtworkBulkDialogComponent } from './components/artwork-bulk-dialog/artwork-bulk-dialog.component';
 import { LibraryService } from '../../shared/services/library.service';
 import { JobsService } from '../../shared/services/jobs.service';
 import { AsyncPipe } from '@angular/common';
@@ -20,6 +21,7 @@ type SortMode = 'title-asc' | 'title-desc' | 'gameId-asc' | 'gameId-desc';
   imports: [
     GamecardComponent,
     LibraryRenameDialogComponent,
+    ArtworkBulkDialogComponent,
     AsyncPipe,
     LucideAngularModule,
   ],
@@ -28,6 +30,8 @@ type SortMode = 'title-asc' | 'title-desc' | 'gameId-asc' | 'gameId-desc';
 })
 export class LibraryComponent {
   public showRenameDialog = false;
+  public showArtworkBulkDialog = false;
+  public artworkBulkTargets: Game[] = [];
 
   constructor(
     public readonly _libraryService: LibraryService,
@@ -49,7 +53,7 @@ export class LibraryComponent {
     this.showRenameDialog = true;
   }
 
-  /** Queues an artwork-download job for every disc game in the library. */
+  /** Opens the bulk artwork wizard for every disc game in the library. */
   downloadAllArt() {
     const targets = this._libraryService.currentLibraryValue.filter(
       (g) => g.system !== 'APPS' && g.gameId
@@ -58,8 +62,14 @@ export class LibraryComponent {
       window.alert('No games with a game ID to fetch artwork for.');
       return;
     }
+    this.artworkBulkTargets = targets;
+    this.showArtworkBulkDialog = true;
+  }
+
+  /** Queues an artwork-download job for each bulk-wizard target with the chosen types. */
+  onArtworkBulkConfirm(artTypes: string[]) {
     this._jobs.enqueue(
-      targets.map((g) => ({
+      this.artworkBulkTargets.map((g) => ({
         type: 'artwork',
         label: g.title || g.gameId || g.filename,
         filePath: g.path,
@@ -67,8 +77,10 @@ export class LibraryComponent {
         gameName: g.title || '',
         downloadArtwork: false,
         system: g.system === 'PS1' ? 'PS1' : 'PS2',
+        artTypes,
       }))
     );
+    this.showArtworkBulkDialog = false;
   }
 
   /** Queues a ZSO compression job for every PS2 ISO in the library. */

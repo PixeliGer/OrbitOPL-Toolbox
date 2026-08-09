@@ -215,3 +215,10 @@
     (closed)="showAppDeleteDialog = false; _libraryService.refreshGamesFiles()"
   ></app-app-delete-dialog>
 }
+
+@if (showArtworkWizard && game()) {
+  <app-artwork-wizard-dialog
+    [game]="game()!"
+    (closed)="showArtworkWizard = false"
+  ></app-artwork-wizard-dialog>
+}

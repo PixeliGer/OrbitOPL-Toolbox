@@ -72,6 +72,85 @@ export async function downloadArtByGameId(
   return { success: true, data: results };
 }
 
+export interface AvailableArtEntry {
+  type: string;
+  fileName: string;
+  downloadUrl: string;
+}
+
+export async function listAvailableArt(
+  gameId: string,
+  system: "PS1" | "PS2" = "PS2"
+): Promise<{ success: boolean; data: AvailableArtEntry[]; message?: string }> {
+  const url = `https://api.github.com/repos/Luden02/psx-ps2-opl-art-database/contents/${system}/${gameId}`;
+  log.verbose(`GET ${url}`);
+
+  try {
+    const body = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+      https
+        .get(
+          url,
+          {
+            headers: {
+              "User-Agent": "OrbitOPL-Toolbox",
+              Accept: "application/vnd.github+json",
+            },
+          },
+          (res) => {
+            const data: Buffer[] = [];
+            res.on("data", (chunk) => data.push(chunk));
+            res.on("end", () =>
+              resolve({ status: res.statusCode ?? 0, text: Buffer.concat(data).toString("utf-8") })
+            );
+          }
+        )
+        .on("error", reject);
+    });
+
+    if (body.status === 404) {
+      return { success: true, data: [], message: `No artwork available for ${gameId} yet.` };
+    }
+
+    if (body.status === 403) {
+      log.warn(`GitHub API rate limit hit while listing art for ${gameId}`);
+      return {
+        success: false,
+        data: [],
+        message: "GitHub API rate limit exceeded — try again later.",
+      };
+    }
+
+    if (body.status !== 200) {
+      return {
+        success: false,
+        data: [],
+        message: `Failed to list artwork for ${gameId}: ${body.status}`,
+      };
+    }
+
+    const json = JSON.parse(body.text);
+    if (!Array.isArray(json)) {
+      return { success: true, data: [], message: `No artwork available for ${gameId} yet.` };
+    }
+
+    const prefix = `${gameId}_`;
+    const entries: AvailableArtEntry[] = json
+      .filter((entry: any) => entry?.type === "file" && typeof entry.name === "string")
+      .filter((entry: any) => entry.name.startsWith(prefix))
+      .map((entry: any) => ({
+        type: entry.name.slice(prefix.length).replace(/\.(png|jpg|jpeg)$/i, ""),
+        fileName: entry.name,
+        downloadUrl: entry.download_url,
+      }));
+
+    log.info(`Found ${entries.length} artwork file(s) for ${gameId} in ${system} database`);
+    return { success: true, data: entries };
+  } catch (err: any) {
+    log.warn(`Failed to list artwork for ${gameId}: ${err.message}`);
+    return { success: false, data: [], message: err.message };
+  }
+}
+
 export async function checkArtFilesExist(artDir: string, filenames: string[]) {
   const existing: string[] = [];
   for (const name of filenames) {
