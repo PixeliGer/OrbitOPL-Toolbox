@@ -1,6 +1,16 @@
 <div class="flex h-full flex-col">
   <app-title-bar></app-title-bar>
 
+  <!-- ── Pre-release channel banner (persistent, no dismiss) ─────── -->
+  @if (buildChannel) {
+  <div class="flex items-center gap-3 border-b border-warning/40 bg-warning/15 px-4 py-1.5 text-xs">
+    <i-lucide name="flask-conical" size="14" class="text-warning"></i-lucide>
+    <span class="font-semibold uppercase tracking-wide text-warning">{{ buildChannelLabel }} build</span>
+    <span class="text-base-content/60">— expect bugs and instability. Not for production use.</span>
+    <span class="ml-auto font-mono text-base-content/40">v{{ version }}</span>
+  </div>
+  }
+
   <!-- ── Update banner ─────────────────────────────────────────── -->
   @if ((_updateService.result$ | async)?.updateAvailable && !(_updateService.dismissed$ | async)) {
   @if ((_updateService.result$ | async); as update) {
