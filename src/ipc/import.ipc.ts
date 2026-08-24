@@ -34,13 +34,17 @@ export function registerImportIpc(): void {
       cueFilePath: string,
       oplRoot: string,
       elfPrefix: string,
-      downloadArtwork: boolean
+      downloadArtwork: boolean,
+      gameId?: string,
+      gameName?: string
     ) => {
       return importPs1Game(
         cueFilePath,
         oplRoot,
         elfPrefix,
         downloadArtwork,
+        gameId,
+        gameName,
         (percent, stage) => {
           event.sender.send("ps1-import-progress", { percent, stage });
         }

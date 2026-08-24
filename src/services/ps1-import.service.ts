@@ -12,6 +12,43 @@ import { createLogger } from "../logger";
 
 const log = createLogger("ps1-import");
 
+// Prefix for auto-assigned IDs given to homebrew discs that carry no
+// Sony-registered serial. Distinct from every prefix in PS1_GAME_ID_PREFIXES
+// so it can never collide with a real detected game ID, while still matching
+// the "<4 letters>_<3 digits>.<2 digits>" shape the library scanner expects
+// to find at the front of a POPS/*.VCD filename.
+const HOMEBREW_GAME_ID_PREFIX = "HBRW";
+
+/**
+ * Pick the lowest-numbered HBRW_###.## id that isn't already used by a file
+ * in the POPS directory, so batch-importing many homebrew discs doesn't
+ * assign the same id twice.
+ */
+async function generateHomebrewGameId(popsDir: string): Promise<string> {
+  let existing: string[] = [];
+  try {
+    existing = await fs.readdir(popsDir);
+  } catch {
+    // POPS directory doesn't exist yet — nothing to conflict with.
+  }
+
+  const used = new Set<number>();
+  const pattern = new RegExp(`^${HOMEBREW_GAME_ID_PREFIX}_(\\d{3})\\.(\\d{2})\\.`, "i");
+  for (const name of existing) {
+    const match = name.match(pattern);
+    if (match) used.add(Number(match[1]) * 100 + Number(match[2]));
+  }
+
+  for (let n = 0; n < 10000; n++) {
+    if (!used.has(n)) {
+      const major = Math.floor(n / 100).toString().padStart(3, "0");
+      const minor = (n % 100).toString().padStart(2, "0");
+      return `${HOMEBREW_GAME_ID_PREFIX}_${major}.${minor}`;
+    }
+  }
+  throw new Error("Exhausted available homebrew game ID slots.");
+}
+
 const POPSTARTER_ELF_CANDIDATE_PATHS = [
   path.join(getAssetsDir(), "POPSTARTER.ELF"),
   path.resolve(__dirname, "../assets/POPSTARTER.ELF"),
@@ -45,6 +82,8 @@ export async function importPs1Game(
   oplRoot: string,
   elfPrefix: string,
   downloadArtwork: boolean,
+  overrideGameId?: string,
+  overrideGameName?: string,
   onProgress?: (percent: number, stage: string) => void
 ): Promise<ImportPs1Result> {
   try {
@@ -84,21 +123,33 @@ export async function importPs1Game(
       cuePath = cueFilePath;
     }
 
-    // Step 2: Determine game ID from BIN
+    // Step 2: Resolve game ID + name (use overrides if provided, else detect;
+    // fall back to an auto-assigned homebrew ID if neither works, since
+    // VCD conversion itself has no dependency on a real Sony-registered ID).
     if (onProgress) onProgress(30, "Detecting PS1 game ID");
 
-    const idResult = await tryDeterminePs1GameIdFromHex(binPath);
-    if (!idResult.success || !("gameId" in idResult)) {
-      log.error(`PS1 import: ${idResult.message || "could not determine game ID"}`);
-      return {
-        success: false,
-        message: idResult.message || "Could not determine PS1 game ID from the disc image.",
-      };
+    let gameId = overrideGameId?.trim();
+    let gameName = overrideGameName?.trim();
+    if (!gameId || !gameName) {
+      const idResult = await tryDeterminePs1GameIdFromHex(binPath);
+      if (idResult.success && "gameId" in idResult) {
+        if (!gameId) gameId = idResult.gameId;
+        if (!gameName) gameName = idResult.gameName;
+      } else {
+        log.verbose(
+          `PS1 import: ${idResult.message || "could not determine game ID"} — treating as homebrew`
+        );
+      }
     }
 
-    const gameId = idResult.gameId;
-    const gameName = idResult.gameName || "Unknown";
-    log.verbose(`Detected PS1 game ${gameId} (${gameName})`);
+    if (!gameId) {
+      gameId = await generateHomebrewGameId(popsDir);
+      log.info(`No registered PS1 game ID found — auto-assigned homebrew ID ${gameId}`);
+    }
+    if (!gameName) {
+      gameName = path.basename(cueFilePath, path.extname(cueFilePath));
+    }
+    log.verbose(`Resolved PS1 game ${gameId} (${gameName})`);
 
     // Step 3: Convert BIN/CUE to VCD
     if (onProgress) onProgress(35, "Converting to VCD format");

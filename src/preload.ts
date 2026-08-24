@@ -153,14 +153,18 @@ function buildLibraryAPI() {
       cueFilePath: string,
       oplRoot: string,
       elfPrefix: string,
-      downloadArtwork: boolean
+      downloadArtwork: boolean,
+      gameId?: string,
+      gameName?: string
     ) =>
       ipcRenderer.invoke(
         "import-ps1-game",
         cueFilePath,
         oplRoot,
         elfPrefix,
-        downloadArtwork
+        downloadArtwork,
+        gameId,
+        gameName
       ),
     onPs1ImportProgress: (
       callback: (progress: { percent: number; stage: string }) => void

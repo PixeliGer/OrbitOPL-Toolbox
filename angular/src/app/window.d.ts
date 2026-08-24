@@ -132,12 +132,19 @@ declare interface Window {
       message?: string;
     }>;
 
-    /** Import a PS1 game (cue + bin/iso → VCD + POPStarter config). */
+    /**
+     * Import a PS1 game (cue + bin/iso → VCD + POPStarter config). If gameId/
+     * gameName are omitted, they're auto-detected from the disc; when no
+     * registered Sony game ID can be found (e.g. homebrew), the backend
+     * auto-assigns a non-conflicting HBRW_###.## id instead of failing.
+     */
     importPs1Game: (
       cueFilePath: string,
       oplRoot: string,
       elfPrefix: string,
       downloadArtwork: boolean,
+      gameId?: string,
+      gameName?: string,
     ) => Promise<any>;
 
     /** Listen for PS1 import progress events. */

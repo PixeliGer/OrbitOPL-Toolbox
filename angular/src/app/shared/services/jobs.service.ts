@@ -474,6 +474,8 @@ export class JobsService {
         dirPath,
         job.elfPrefix || 'XX.',
         job.downloadArtwork,
+        job.gameId || undefined,
+        job.gameName || undefined,
       );
     } finally {
       window.libraryAPI.removeAllPs1ImportProgressListeners();

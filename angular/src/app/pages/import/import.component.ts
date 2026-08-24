@@ -50,11 +50,12 @@ export class ImportComponent {
 
   /**
    * A staged entry is importable once it has a name; disc games additionally
-   * need a game id (apps don't have one).
+   * need a game id (apps don't have one, and PS1 homebrew without a
+   * registered id gets one auto-assigned at import time).
    */
   get readyCount(): number {
     return this.staged.filter(
-      (f) => f.gameName && (this.isApp || f.gameId)
+      (f) => f.gameName && (this.isApp || this.isGamePsx || f.gameId)
     ).length;
   }
 
@@ -119,6 +120,22 @@ export class ImportComponent {
     } catch (err: any) {
       message = err?.message;
     }
+
+    // PS1 discs with no registered game id (typically homebrew) can still be
+    // converted to VCD — the backend auto-assigns a non-conflicting id, so
+    // stage them as importable under their filename instead of blocking them.
+    if (this.isGamePsx) {
+      return {
+        path,
+        fileName,
+        gameId: '',
+        gameName: fileName.replace(/\.(cue|iso|bin)$/i, ''),
+        detected: false,
+        invalid: false,
+        message: message ? `Homebrew (no registered game ID): ${message}` : 'Homebrew — a game ID will be auto-assigned.',
+      };
+    }
+
     return {
       path,
       fileName,
@@ -140,7 +157,7 @@ export class ImportComponent {
 
   importAll() {
     const ready = this.staged.filter(
-      (f) => f.gameName && (this.isApp || f.gameId)
+      (f) => f.gameName && (this.isApp || this.isGamePsx || f.gameId)
     );
     if (!ready.length) {
       return;

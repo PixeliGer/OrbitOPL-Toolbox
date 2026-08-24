@@ -199,8 +199,8 @@
               </button>
             </div>
 
-            @if (file.invalid && !file.detected) {
-            <p class="mt-1 text-xs text-warning">
+            @if (!file.detected && (file.invalid || file.message)) {
+            <p class="mt-1 text-xs" [class.text-warning]="file.invalid" [class.text-info]="!file.invalid">
               {{ file.message || "Could not auto-detect — enter the Game ID and name manually." }}
             </p>
             }
