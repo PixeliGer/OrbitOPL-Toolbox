@@ -1,10 +1,12 @@
 import * as fs from "fs/promises";
 import path from "path";
 import { createLogger } from "../logger";
+import { getAssetsDir } from "./resource-path";
 
 const log = createLogger("games-list");
 
 const PS1_GAMES_LIST_CANDIDATE_PATHS = [
+  path.join(getAssetsDir(), "ps1-gameslist.txt"),
   path.resolve(__dirname, "../assets/ps1-gameslist.txt"),
   path.resolve(__dirname, "../../assets/ps1-gameslist.txt"),
   path.resolve(process.cwd(), "assets/ps1-gameslist.txt"),
@@ -64,6 +66,7 @@ export async function findPs1GameName(gameId: string) {
 }
 
 const PS2_GAMES_LIST_CANDIDATE_PATHS = [
+  path.join(getAssetsDir(), "ps2-gameslist.txt"),
   path.resolve(__dirname, "../assets/ps2-gameslist.txt"),
   path.resolve(__dirname, "../../assets/ps2-gameslist.txt"),
   path.resolve(process.cwd(), "assets/ps2-gameslist.txt"),

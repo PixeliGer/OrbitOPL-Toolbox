@@ -7,11 +7,13 @@ import { tryDeterminePs1GameIdFromHex } from "./game-id-resolver.service";
 import { downloadArtByGameId } from "./artwork.service";
 import { sanitizeGameFilename } from "../utils/sanitize";
 import { describeFileAccessError } from "../utils/file-access-error";
+import { getAssetsDir } from "../utils/resource-path";
 import { createLogger } from "../logger";
 
 const log = createLogger("ps1-import");
 
 const POPSTARTER_ELF_CANDIDATE_PATHS = [
+  path.join(getAssetsDir(), "POPSTARTER.ELF"),
   path.resolve(__dirname, "../assets/POPSTARTER.ELF"),
   path.resolve(__dirname, "../../assets/POPSTARTER.ELF"),
   path.resolve(process.cwd(), "assets/POPSTARTER.ELF"),
