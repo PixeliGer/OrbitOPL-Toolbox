@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import {
   renamePs1LauncherStep1,
   renamePs1LauncherStep2,
+  convertPs1LauncherToPopsLoader,
 } from "../services/rename.service";
 
 export function registerRenameIpc(): void {
@@ -33,6 +34,15 @@ export function registerRenameIpc(): void {
     ) => {
       return renamePs1LauncherStep2(params, (percent, stage) => {
         event.sender.send("rename-ps1-progress", { percent, stage });
+      });
+    }
+  );
+
+  ipcMain.handle(
+    "convert-ps1-to-popsloader",
+    async (event, vcdPath: string, gameId: string) => {
+      return convertPs1LauncherToPopsLoader(vcdPath, gameId, (percent, stage) => {
+        event.sender.send("convert-ps1-popsloader-progress", { percent, stage });
       });
     }
   );

@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
 import { LibraryService } from '../../shared/services/library.service';
 import { JobsService, ImportJobType } from '../../shared/services/jobs.service';
+import { SettingsService } from '../../shared/services/settings.service';
 import { AsyncPipe } from '@angular/common';
 
 interface StagedFile {
@@ -20,10 +21,11 @@ interface StagedFile {
   templateUrl: './import.component.html',
   styleUrl: './import.component.scss',
 })
-export class ImportComponent {
+export class ImportComponent implements OnInit {
   constructor(
     public _libraryService: LibraryService,
-    private _jobs: JobsService
+    private _jobs: JobsService,
+    private _settings: SettingsService
   ) {}
 
   importMode: ImportJobType = 'ps2-dvd';
@@ -31,6 +33,20 @@ export class ImportComponent {
   /** PS2 DVD only: keep the original filename (new OPL convention). */
   keepOriginalName = false;
   elfPrefix = 'XX.';
+  /** PS1 only: POPStarter (APPS launcher) vs POPSLoader (no launcher, no GameID in filename). */
+  launcherMode: 'popstarter' | 'popsloader' = 'popstarter';
+
+  async ngOnInit() {
+    const settings = await this._settings.load();
+    if (settings.ps1LauncherMode) {
+      this.launcherMode = settings.ps1LauncherMode;
+    }
+  }
+
+  setLauncherMode(mode: 'popstarter' | 'popsloader') {
+    this.launcherMode = mode;
+    void this._settings.set('ps1LauncherMode', mode);
+  }
 
   staged: StagedFile[] = [];
   scanning = false;
@@ -171,6 +187,7 @@ export class ImportComponent {
         gameName: f.gameName,
         downloadArtwork: this.downloadArtwork,
         elfPrefix: this.isGamePsx ? this.elfPrefix : undefined,
+        launcherMode: this.isGamePsx ? this.launcherMode : undefined,
         keepOriginalName: this.isGameDvd ? this.keepOriginalName : undefined,
       }))
     );

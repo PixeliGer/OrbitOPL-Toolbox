@@ -87,6 +87,18 @@ function buildLibraryAPI() {
     removeAllRenamePs1ProgressListeners: () => {
       ipcRenderer.removeAllListeners("rename-ps1-progress");
     },
+    convertPs1ToPopsLoader: (vcdPath: string, gameId: string) =>
+      ipcRenderer.invoke("convert-ps1-to-popsloader", vcdPath, gameId),
+    onConvertPs1PopsLoaderProgress: (
+      callback: (progress: { percent: number; stage: string }) => void
+    ) => {
+      ipcRenderer.on("convert-ps1-popsloader-progress", (_event, progress) =>
+        callback(progress)
+      );
+    },
+    removeAllConvertPs1PopsLoaderProgressListeners: () => {
+      ipcRenderer.removeAllListeners("convert-ps1-popsloader-progress");
+    },
 
     // ── Delete ─────────────────────────────────────
     deleteApp: (oplRoot: string, folder: string) =>
@@ -155,7 +167,8 @@ function buildLibraryAPI() {
       elfPrefix: string,
       downloadArtwork: boolean,
       gameId?: string,
-      gameName?: string
+      gameName?: string,
+      launcherMode?: "popstarter" | "popsloader"
     ) =>
       ipcRenderer.invoke(
         "import-ps1-game",
@@ -164,7 +177,8 @@ function buildLibraryAPI() {
         elfPrefix,
         downloadArtwork,
         gameId,
-        gameName
+        gameName,
+        launcherMode
       ),
     onPs1ImportProgress: (
       callback: (progress: { percent: number; stage: string }) => void

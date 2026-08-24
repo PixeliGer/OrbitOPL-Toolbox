@@ -11,7 +11,8 @@ export type ImportJobType =
   | 'zso'
   | 'apps'
   | 'artwork'
-  | 'rename';
+  | 'rename'
+  | 'ps1-convert-popsloader';
 export type JobStatus =
   | 'queued'
   | 'running'
@@ -30,6 +31,12 @@ export interface ImportJob {
   downloadArtwork: boolean;
   /** PS1 only: POPStarter device prefix (e.g. "XX." / "SB."). */
   elfPrefix?: string;
+  /**
+   * PS1 only: launcher style. "popstarter" (default) creates an APPS
+   * launcher and names the VCD "<GameID>.<Title>.VCD"; "popsloader" skips
+   * the launcher entirely and names the VCD just "<Title>.VCD".
+   */
+  launcherMode?: 'popstarter' | 'popsloader';
   /** Artwork only: which art database to pull from (defaults to PS2). */
   system?: 'PS1' | 'PS2';
   /** Artwork only: which art types to fetch (defaults to COV/ICO/SCR). */
@@ -262,6 +269,8 @@ export class JobsService {
         return this.runArtworkJob(job, dirPath);
       case 'rename':
         return this.runRenameJob(job);
+      case 'ps1-convert-popsloader':
+        return this.runPs1ConvertPopsLoaderJob(job);
       case 'ps2-dvd':
       default:
         return this.runPs2DvdJob(job, dirPath);
@@ -422,6 +431,11 @@ export class JobsService {
     );
   }
 
+  private async runPs1ConvertPopsLoaderJob(job: ImportJob) {
+    this.patchJob(job.id, { stage: 'Converting to POPSLoader…', percent: 50 });
+    return window.libraryAPI.convertPs1ToPopsLoader(job.filePath, job.gameId);
+  }
+
   private async runZsoJob(job: ImportJob) {
     const zsoPath = job.filePath.replace(/\.iso$/i, '.zso');
     window.libraryAPI.onZsoCompressProgress((progress) =>
@@ -476,6 +490,7 @@ export class JobsService {
         job.downloadArtwork,
         job.gameId || undefined,
         job.gameName || undefined,
+        job.launcherMode || 'popstarter',
       );
     } finally {
       window.libraryAPI.removeAllPs1ImportProgressListeners();

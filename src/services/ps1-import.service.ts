@@ -84,10 +84,13 @@ export async function importPs1Game(
   downloadArtwork: boolean,
   overrideGameId?: string,
   overrideGameName?: string,
+  launcherMode: "popstarter" | "popsloader" = "popstarter",
   onProgress?: (percent: number, stage: string) => void
 ): Promise<ImportPs1Result> {
   try {
-    log.info(`PS1 import started: ${cueFilePath} (ELF prefix "${elfPrefix}")`);
+    log.info(
+      `PS1 import started: ${cueFilePath} (ELF prefix "${elfPrefix}", launcher mode "${launcherMode}")`
+    );
     const popsDir = path.join(oplRoot, "POPS");
     const artDir = path.join(oplRoot, "ART");
 
@@ -155,7 +158,10 @@ export async function importPs1Game(
     if (onProgress) onProgress(35, "Converting to VCD format");
 
     const sanitizedName = sanitizeGameFilename(gameName);
-    const vcdFilename = `${gameId}.${sanitizedName}.VCD`;
+    const vcdFilename =
+      launcherMode === "popsloader"
+        ? `${sanitizedName}.VCD`
+        : `${gameId}.${sanitizedName}.VCD`;
     const vcdPath = path.join(popsDir, vcdFilename);
     log.verbose(`Converting to VCD → POPS/${vcdFilename}`);
 
@@ -176,33 +182,40 @@ export async function importPs1Game(
       }
     }
 
-    // Step 5: Copy POPStarter ELF with XX. prefix
-    if (onProgress) onProgress(86, "Setting up Popstarter launcher");
+    // Step 5: Copy POPStarter ELF with XX. prefix (POPStarter mode only —
+    // POPSLoader reads VCDs directly out of POPS/ and needs no launcher app).
+    let elfFilename: string | undefined;
+    if (launcherMode === "popstarter") {
+      if (onProgress) onProgress(86, "Setting up Popstarter launcher");
 
-    const popstarterElf = await findPopstarterElf();
-    if (!popstarterElf) {
-      log.error("POPSTARTER.ELF not found in assets — cannot create PS1 launcher");
-      return {
-        success: false,
-        message:
-          "POPSTARTER.ELF not found in assets. Please place the Popstarter ELF file at assets/POPSTARTER.ELF.",
-      };
+      const popstarterElf = await findPopstarterElf();
+      if (!popstarterElf) {
+        log.error("POPSTARTER.ELF not found in assets — cannot create PS1 launcher");
+        return {
+          success: false,
+          message:
+            "POPSTARTER.ELF not found in assets. Please place the Popstarter ELF file at assets/POPSTARTER.ELF.",
+        };
+      }
+
+      const vcdBasename = vcdFilename.replace(/\.VCD$/i, "");
+      elfFilename = elfPrefix
+        ? `${elfPrefix}${vcdBasename}.ELF`
+        : `${vcdBasename}.ELF`;
+      const appsFolderName = `POPS_${sanitizedName}`;
+      const appsGameDir = path.join(oplRoot, "APPS", appsFolderName);
+      await fs.mkdir(appsGameDir, { recursive: true });
+      await fs.copyFile(popstarterElf, path.join(appsGameDir, elfFilename));
+      await fs.writeFile(
+        path.join(appsGameDir, "title.cfg"),
+        `title=${gameName}\nboot=${elfFilename}\nGameID=${gameId}\n`,
+        "utf-8"
+      );
+      log.verbose(`Created POPStarter launcher APPS/${appsFolderName}/${elfFilename}`);
+    } else {
+      if (onProgress) onProgress(86, "Skipping launcher (POPSLoader mode)");
+      log.verbose("POPSLoader mode — no APPS launcher created");
     }
-
-    const vcdBasename = vcdFilename.replace(/\.VCD$/i, "");
-    const elfFilename = elfPrefix
-      ? `${elfPrefix}${vcdBasename}.ELF`
-      : `${vcdBasename}.ELF`;
-    const appsFolderName = `POPS_${sanitizedName}`;
-    const appsGameDir = path.join(oplRoot, "APPS", appsFolderName);
-    await fs.mkdir(appsGameDir, { recursive: true });
-    await fs.copyFile(popstarterElf, path.join(appsGameDir, elfFilename));
-    await fs.writeFile(
-      path.join(appsGameDir, "title.cfg"),
-      `title=${gameName}\nboot=${elfFilename}\nGameID=${gameId}\n`,
-      "utf-8"
-    );
-    log.verbose(`Created POPStarter launcher APPS/${appsFolderName}/${elfFilename}`);
 
     // Step 7: Download artwork
     if (downloadArtwork) {

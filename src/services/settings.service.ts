@@ -14,11 +14,14 @@ export interface AppSettings {
   lastDirectory?: string;
   /** Re-mount the last directory automatically on launch. */
   autoReconnect: boolean;
+  /** Last-picked PS1 launcher style on the Import screen. */
+  ps1LauncherMode?: "popstarter" | "popsloader";
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   lastDirectory: undefined,
   autoReconnect: true,
+  ps1LauncherMode: "popstarter",
 };
 
 function settingsFilePath(): string {

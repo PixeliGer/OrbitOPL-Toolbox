@@ -36,7 +36,8 @@ export function registerImportIpc(): void {
       elfPrefix: string,
       downloadArtwork: boolean,
       gameId?: string,
-      gameName?: string
+      gameName?: string,
+      launcherMode?: "popstarter" | "popsloader"
     ) => {
       return importPs1Game(
         cueFilePath,
@@ -45,6 +46,7 @@ export function registerImportIpc(): void {
         downloadArtwork,
         gameId,
         gameName,
+        launcherMode,
         (percent, stage) => {
           event.sender.send("ps1-import-progress", { percent, stage });
         }

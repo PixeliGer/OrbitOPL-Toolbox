@@ -67,6 +67,7 @@ export class LibraryRenameDialogComponent implements OnInit {
 
   ps1DialogState: 'input' | 'running' | 'done' = 'input';
   ps1Log: LogEntry[] = [];
+  ps1Action: 'rename' | 'convert' = 'rename';
 
   private plan: RenamePlanItem[] = [];
   private candidates: Game[] = [];
@@ -331,10 +332,58 @@ export class LibraryRenameDialogComponent implements OnInit {
     }
   }
 
+  async convertToPopsLoader() {
+    const g = this.game();
+    if (!g || !g.isPs1Launcher || !g.path || !g.gameId || this.running) return;
+
+    this.ps1Action = 'convert';
+    this.running = true;
+    this.ps1DialogState = 'running';
+    this.ps1Log = [];
+    this.addLog(`Converting "${g.title}" to POPSLoader`, 'step');
+
+    const handleProgress = (progress: Ps1RenameProgress) => {
+      if (this.destroyed) return;
+      const isChange =
+        progress.stage.startsWith('Renaming VCD:') ||
+        progress.stage.startsWith('Removing APPS launcher');
+      if (isChange) {
+        const p = this.parseChangeMsg(progress.stage);
+        if (p) {
+          this.addLog(p.prefix, 'change', p.oldText, p.newText);
+        } else {
+          this.addLog(progress.stage, 'change');
+        }
+      } else {
+        this.addLog(progress.stage, 'info');
+      }
+    };
+    window.libraryAPI.onConvertPs1PopsLoaderProgress(handleProgress);
+
+    try {
+      const result = await window.libraryAPI.convertPs1ToPopsLoader(g.path, g.gameId);
+      if (result.success) {
+        this.addLog('Conversion complete!', 'success');
+        this._libraryService.refreshGamesFiles();
+      } else {
+        this.addLog(`Failed: ${result.message}`, 'error');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.addLog(`Error: ${msg}`, 'error');
+    } finally {
+      window.libraryAPI.removeAllConvertPs1PopsLoaderProgressListeners();
+      this.ps1DialogState = 'done';
+      this.running = false;
+      if (!this.destroyed) this._cdr.detectChanges();
+    }
+  }
+
   run() {
     if (this.running) return;
 
     if (this.isPs1Launcher && this.game()) {
+      this.ps1Action = 'rename';
       void this.runPs1();
       return;
     }

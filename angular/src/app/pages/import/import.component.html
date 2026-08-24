@@ -68,11 +68,19 @@
         @if (isGamePsx) {
         <div class="mt-4 flex gap-2 rounded-md border border-info/30 bg-info/10 p-3 text-sm">
           <i-lucide name="info" size="16" class="mt-0.5 shrink-0 text-info"></i-lucide>
+          @if (launcherMode === 'popsloader') {
+          <span
+            >PS1 import converts BIN/CUE to VCD format, detects the game ID,
+            and saves it as "&lt;Title&gt;.VCD" directly in the POPS folder —
+            no APPS launcher is created.</span
+          >
+          } @else {
           <span
             >PS1 import converts BIN/CUE to VCD format, detects the game ID,
             places it in the VCD directory, and creates the
             XX.GameName.ELF Popstarter launcher inside the POPS folder.</span
           >
+          }
         </div>
         }
       </section>
@@ -119,6 +127,46 @@
         }
 
         @if (isGamePsx) {
+        <div class="mt-5 border-t border-base-content/10 pt-4">
+          <span class="text-sm font-semibold">PS1 launcher style:</span>
+          <div class="mt-2 flex flex-col gap-2">
+            <label class="flex cursor-pointer items-start gap-2">
+              <input
+                type="radio"
+                name="radio-launchermode"
+                class="radio radio-primary radio-sm mt-0.5"
+                [checked]="launcherMode === 'popstarter'"
+                (change)="setLauncherMode('popstarter')"
+              />
+              <span class="leading-tight">
+                <span class="text-sm">POPStarter (default)</span>
+                <span class="block text-[0.68rem] text-base-content/55">
+                  Creates an APPS launcher entry. VCD is named
+                  "&lt;GameID&gt;.&lt;Title&gt;.VCD".
+                </span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-2">
+              <input
+                type="radio"
+                name="radio-launchermode"
+                class="radio radio-primary radio-sm mt-0.5"
+                [checked]="launcherMode === 'popsloader'"
+                (change)="setLauncherMode('popsloader')"
+              />
+              <span class="leading-tight">
+                <span class="text-sm">POPSLoader</span>
+                <span class="block text-[0.68rem] text-base-content/55">
+                  No launcher app. VCD is named "&lt;Title&gt;.VCD" so
+                  POPSLoader's disc-swap and per-game files work correctly.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+        }
+
+        @if (isGamePsx && launcherMode === 'popstarter') {
         <div class="mt-5 border-t border-base-content/10 pt-4">
           <span class="text-sm font-semibold"
             >POPStarter prefix — tells OPL which device holds the VCD:</span

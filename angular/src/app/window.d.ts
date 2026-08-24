@@ -68,6 +68,24 @@ declare interface Window {
     /** Remove all PS1 rename progress listeners. */
     removeAllRenamePs1ProgressListeners: () => void;
 
+    /**
+     * Converts a POPStarter-launched PS1 game to POPSLoader style: strips
+     * the GameID prefix from the VCD filename and deletes the APPS launcher
+     * folder.
+     */
+    convertPs1ToPopsLoader: (
+      vcdPath: string,
+      gameId: string,
+    ) => Promise<{ success: boolean; newVcdPath?: string; message?: string }>;
+
+    /** Listen for PS1-to-POPSLoader conversion progress events. */
+    onConvertPs1PopsLoaderProgress: (
+      callback: (progress: { percent: number; stage: string }) => void,
+    ) => void;
+
+    /** Remove all PS1-to-POPSLoader conversion progress listeners. */
+    removeAllConvertPs1PopsLoaderProgressListeners: () => void;
+
     /** Listen for PS1 delete progress events. */
     onDeletePs1Progress: (
       callback: (entry: {
@@ -145,6 +163,7 @@ declare interface Window {
       downloadArtwork: boolean,
       gameId?: string,
       gameName?: string,
+      launcherMode?: 'popstarter' | 'popsloader',
     ) => Promise<any>;
 
     /** Listen for PS1 import progress events. */
@@ -435,5 +454,7 @@ declare interface AppSettings {
   lastDirectory?: string;
   /** Whether to auto-reconnect to the last directory on startup. */
   autoReconnect: boolean;
+  /** Last-picked PS1 launcher style on the Import screen. */
+  ps1LauncherMode?: 'popstarter' | 'popsloader';
 }
 

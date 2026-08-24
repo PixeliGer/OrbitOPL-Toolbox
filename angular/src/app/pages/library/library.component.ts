@@ -116,6 +116,32 @@ export class LibraryComponent {
     );
   }
 
+  /** Queues a POPSLoader-conversion job for every POPStarter-launched PS1 game. */
+  convertAllPs1ToPopsLoader() {
+    const candidates = this._libraryService.currentLibraryValue.filter(
+      (g) => g.system === 'APPS' && g.isPs1Launcher && g.path && g.gameId
+    );
+    if (candidates.length === 0) {
+      window.alert('No POPStarter-launched PS1 games to convert.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Convert ${candidates.length} PS1 game(s) to POPSLoader style?\n\n` +
+      `Each VCD's GameID prefix will be dropped and its APPS launcher folder removed.`
+    );
+    if (!confirmed) return;
+    this._jobs.enqueue(
+      candidates.map((g) => ({
+        type: 'ps1-convert-popsloader',
+        label: g.title || g.gameId || g.filename,
+        filePath: g.path,
+        gameId: g.gameId,
+        gameName: g.title || '',
+        downloadArtwork: false,
+      }))
+    );
+  }
+
   private activeTabSubject = new BehaviorSubject<SystemTab>('PS2');
   public activeTab$ = this.activeTabSubject.asObservable();
   private sortModeSubject = new BehaviorSubject<SortMode>('title-asc');

@@ -334,3 +334,57 @@ export async function renamePs1LauncherStep2(
   log.info(`PS1 rename step 2 complete`);
   return { success: true };
 }
+
+/**
+ * Converts a POPStarter-launched PS1 game to POPSLoader style: strips the
+ * "<GameID>." prefix from the VCD filename and deletes the APPS launcher
+ * folder. Cover art is unaffected — it's already keyed by GameID, and OPL
+ * resolves the GameID by reading it straight out of the VCD's header
+ * regardless of filename, so no art needs to move.
+ */
+export async function convertPs1LauncherToPopsLoader(
+  vcdPath: string,
+  gameId: string,
+  onProgress?: (percent: number, stage: string) => void,
+): Promise<{
+  success: boolean;
+  newVcdPath?: string;
+  message?: string;
+}> {
+  const popsDir = path.dirname(vcdPath);
+  const oplRoot = path.resolve(popsDir, "..");
+
+  const oldTitle = deriveOldTitle(vcdPath, gameId);
+  if (!oldTitle) {
+    return { success: false, message: "Could not derive the current game title from the VCD filename." };
+  }
+
+  const vcdBasename = path.basename(vcdPath);
+  const vcdExt = path.extname(vcdBasename);
+  if (vcdBasename === `${oldTitle}${vcdExt}`) {
+    return { success: false, message: "This game's VCD filename already has no GameID prefix." };
+  }
+
+  log.info(`PS1 convert-to-POPSLoader: "${vcdBasename}" (gameId=${gameId})`);
+
+  const newVcdBasename = `${oldTitle}${vcdExt}`;
+  const newVcdPath = path.join(popsDir, newVcdBasename);
+
+  const vcdError = await renameVcdFile(vcdPath, newVcdPath, vcdBasename, newVcdBasename, onProgress);
+  if (vcdError) return { success: false, message: vcdError };
+
+  const appsFolder = path.join(oplRoot, "APPS", `POPS_${oldTitle}`);
+  onProgress?.(80, `Removing APPS launcher: POPS_${oldTitle}/`);
+  try {
+    await fs.rm(appsFolder, { recursive: true, force: true });
+    log.info(`Removed APPS launcher folder: POPS_${oldTitle}/`);
+  } catch (err: unknown) {
+    const msg = `VCD renamed, but failed to remove APPS launcher folder: ${err instanceof Error ? err.message : String(err)}`;
+    log.error(msg);
+    return { success: false, newVcdPath, message: msg };
+  }
+
+  onProgress?.(PROGRESS_DONE, "Conversion complete");
+  log.info(`PS1 convert-to-POPSLoader complete: "${vcdBasename}" → "${newVcdBasename}"`);
+  return { success: true, newVcdPath };
+}
