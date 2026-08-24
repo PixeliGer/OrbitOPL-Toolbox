@@ -99,6 +99,29 @@ function buildLibraryAPI() {
     removeAllConvertPs1PopsLoaderProgressListeners: () => {
       ipcRenderer.removeAllListeners("convert-ps1-popsloader-progress");
     },
+    convertPs1ToPopstarter: (
+      vcdPath: string,
+      gameId: string,
+      gameName: string,
+      elfPrefix: string
+    ) =>
+      ipcRenderer.invoke(
+        "convert-ps1-to-popstarter",
+        vcdPath,
+        gameId,
+        gameName,
+        elfPrefix
+      ),
+    onConvertPs1PopstarterProgress: (
+      callback: (progress: { percent: number; stage: string }) => void
+    ) => {
+      ipcRenderer.on("convert-ps1-popstarter-progress", (_event, progress) =>
+        callback(progress)
+      );
+    },
+    removeAllConvertPs1PopstarterProgressListeners: () => {
+      ipcRenderer.removeAllListeners("convert-ps1-popstarter-progress");
+    },
 
     // ── Delete ─────────────────────────────────────
     deleteApp: (oplRoot: string, folder: string) =>

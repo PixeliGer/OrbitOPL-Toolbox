@@ -580,7 +580,8 @@ export class LibraryService {
 
   /**
    * Match artwork from the /ART directory against every game in the list.
-   * PS1 launcher apps are matched by boot ELF name; all others by gameId.
+   * PS1 launcher apps are matched by boot ELF name, PS1 POPSLoader/RiptOPL
+   * VCDs by title (falling back to gameId), and everything else by gameId.
    */
   private matchArtForGames(games: Game[], artFiles: gameArt[]): void {
     for (const game of games) {
@@ -593,6 +594,13 @@ export class LibraryService {
         // Regular ELF apps: art files follow <boot>.ELF_<TYPE>.png convention
         game.art = artFiles.filter(
           (art: gameArt) => art.gameId === game.filename,
+        );
+      } else if (game.system === 'PS1' && game.filename) {
+        // POPSLoader/RiptOPL VCDs carry no GameID in their filename, so their
+        // art is saved under the VCD's title instead — match either convention.
+        const filenameNoExt = game.filename.replace(/\.[^./\\]+$/, '');
+        game.art = artFiles.filter(
+          (art: gameArt) => art.gameId === game.gameId || art.gameId === filenameNoExt,
         );
       } else {
         game.art = artFiles.filter(
@@ -685,6 +693,15 @@ export class LibraryService {
             art: artFiles
               .filter((art: gameArt) => (bootName + '_' + (art.type || '')) === art.name)
               .map((art: gameArt) => art),
+          };
+        }
+        if (game.system === 'PS1' && game.filename) {
+          const filenameNoExt = game.filename.replace(/\.[^./\\]+$/, '');
+          return {
+            ...game,
+            art: artFiles.filter(
+              (art: gameArt) => art.gameId === gameId || art.gameId === filenameNoExt,
+            ),
           };
         }
         return {

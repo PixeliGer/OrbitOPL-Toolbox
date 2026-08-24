@@ -35,6 +35,8 @@ export class ImportComponent implements OnInit {
   elfPrefix = 'XX.';
   /** PS1 only: POPStarter (APPS launcher) vs POPSLoader (no launcher, no GameID in filename). */
   launcherMode: 'popstarter' | 'popsloader' = 'popstarter';
+  /** PS1 only: VCD art naming convention. */
+  vcdArtNaming: 'gameId' | 'filename' = 'gameId';
 
   async ngOnInit() {
     const settings = await this._settings.load();

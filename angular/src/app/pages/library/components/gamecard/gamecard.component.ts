@@ -116,16 +116,25 @@ export class GamecardComponent {
   readonly canRenameConvention = computed(() => {
     const g = this.game();
     if (!g) return false;
-    if (g.isPs1Launcher) {
+    const system = g.system ?? 'PS2';
+    if (g.isPs1Launcher || system === 'PS1') {
       return !!g.path && !!g.gameId && !!g.title;
     }
-    const system = g.system ?? 'PS2';
     return (
       system === 'PS2' &&
       (g.format === 'ISO' || g.format === 'ZSO') &&
       !!g.gameId &&
       !!g.title
     );
+  });
+
+  /** Label for the rename/convert menu entry, tailored to the game's system. */
+  readonly renameMenuLabel = computed(() => {
+    const g = this.game();
+    if (!g) return 'Rename to convention…';
+    if (g.isPs1Launcher) return 'Rename game…';
+    if ((g.system ?? 'PS2') === 'PS1') return 'Convert launcher…';
+    return 'Rename to convention…';
   });
 
   // ── Dialog visibility state ──────────────────────────────────────────

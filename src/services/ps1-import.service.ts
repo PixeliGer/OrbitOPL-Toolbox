@@ -56,7 +56,7 @@ const POPSTARTER_ELF_CANDIDATE_PATHS = [
   path.resolve(process.cwd(), "assets/POPSTARTER.ELF"),
 ];
 
-async function findPopstarterElf(): Promise<string | null> {
+export async function findPopstarterElf(): Promise<string | null> {
   for (const candidate of POPSTARTER_ELF_CANDIDATE_PATHS) {
     try {
       await fs.access(candidate);
@@ -221,7 +221,12 @@ export async function importPs1Game(
     if (downloadArtwork) {
       if (onProgress) onProgress(93, "Downloading artwork");
       try {
-        await downloadArtByGameId(artDir, gameId, "PS1", elfFilename, ["COV"]);
+        // POPSLoader/RiptOPL match art to a game by its VCD filename (no
+        // GameID prefix), not by GameID — save it under that name instead
+        // of the POPStarter naming used below.
+        const artSaveName =
+          launcherMode === "popsloader" ? sanitizedName : elfFilename;
+        await downloadArtByGameId(artDir, gameId, "PS1", artSaveName, ["COV"]);
       } catch {
         // Art download failure is non-critical
       }

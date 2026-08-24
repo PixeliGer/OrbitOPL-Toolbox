@@ -15,6 +15,8 @@ import { JobsService } from '@shared/services/jobs.service';
 import { Game } from '@shared/types/game.type';
 
 type Convention = 'old' | 'new';
+type Ps1Action = 'rename' | 'convert-to-popsloader' | 'convert-to-popstarter';
+type ElfPrefix = 'XX.' | 'SB.';
 
 interface RenamePlanItem {
   game: Game;
@@ -67,7 +69,8 @@ export class LibraryRenameDialogComponent implements OnInit {
 
   ps1DialogState: 'input' | 'running' | 'done' = 'input';
   ps1Log: LogEntry[] = [];
-  ps1Action: 'rename' | 'convert' = 'rename';
+  ps1Action: Ps1Action = 'rename';
+  ps1ElfPrefix: ElfPrefix = 'XX.';
 
   private plan: RenamePlanItem[] = [];
   private candidates: Game[] = [];
@@ -102,6 +105,16 @@ export class LibraryRenameDialogComponent implements OnInit {
     return !!this.game()?.isPs1Launcher;
   }
 
+  /** A POPSLoader/RiptOPL-style PS1 game — no APPS launcher, filename has no GameID prefix. */
+  get isPs1NonLauncher(): boolean {
+    const g = this.game();
+    return !!g && g.system === 'PS1' && !g.isPs1Launcher;
+  }
+
+  get isPs1Game(): boolean {
+    return this.isPs1Launcher || this.isPs1NonLauncher;
+  }
+
   get hasChanges(): boolean {
     if (this.isPs1Launcher) {
       return (
@@ -110,11 +123,29 @@ export class LibraryRenameDialogComponent implements OnInit {
         this.ps1NewTitle.trim() !== this.initialPs1NewTitle
       );
     }
+    if (this.isPs1NonLauncher) {
+      return false;
+    }
     return this.plan.length > 0;
   }
 
+  get ps1ActionLabel(): string {
+    switch (this.ps1Action) {
+      case 'convert-to-popsloader':
+        return 'Converting to POPSLoader';
+      case 'convert-to-popstarter':
+        return 'Converting to POPStarter';
+      default:
+        return 'Renaming PS1 App Game';
+    }
+  }
+
+  get ps1DoneLabel(): string {
+    return this.ps1Action === 'rename' ? 'Rename complete' : 'Conversion complete';
+  }
+
   get ps1CloseAllowed(): boolean {
-    return !this.isPs1Launcher || this.ps1DialogState !== 'running';
+    return !this.isPs1Game || this.ps1DialogState !== 'running';
   }
 
   get ps1VcdFilename(): string {
@@ -336,7 +367,7 @@ export class LibraryRenameDialogComponent implements OnInit {
     const g = this.game();
     if (!g || !g.isPs1Launcher || !g.path || !g.gameId || this.running) return;
 
-    this.ps1Action = 'convert';
+    this.ps1Action = 'convert-to-popsloader';
     this.running = true;
     this.ps1DialogState = 'running';
     this.ps1Log = [];
@@ -373,6 +404,64 @@ export class LibraryRenameDialogComponent implements OnInit {
       this.addLog(`Error: ${msg}`, 'error');
     } finally {
       window.libraryAPI.removeAllConvertPs1PopsLoaderProgressListeners();
+      this.ps1DialogState = 'done';
+      this.running = false;
+      if (!this.destroyed) this._cdr.detectChanges();
+    }
+  }
+
+  setPs1ElfPrefix(prefix: ElfPrefix) {
+    this.ps1ElfPrefix = prefix;
+  }
+
+  async convertToPopstarter() {
+    const g = this.game();
+    if (!g || !this.isPs1NonLauncher || !g.path || !g.gameId || this.running) return;
+
+    this.ps1Action = 'convert-to-popstarter';
+    this.running = true;
+    this.ps1DialogState = 'running';
+    this.ps1Log = [];
+    this.addLog(`Converting "${g.title}" to POPStarter`, 'step');
+
+    const handleProgress = (progress: Ps1RenameProgress) => {
+      if (this.destroyed) return;
+      const isChange =
+        progress.stage.startsWith('Renaming VCD:') ||
+        progress.stage.startsWith('Creating APPS launcher') ||
+        progress.stage.startsWith('Renaming cover art') ||
+        progress.stage.startsWith('Renamed');
+      if (isChange) {
+        const p = this.parseChangeMsg(progress.stage);
+        if (p) {
+          this.addLog(p.prefix, 'change', p.oldText, p.newText);
+        } else {
+          this.addLog(progress.stage, 'change');
+        }
+      } else {
+        this.addLog(progress.stage, 'info');
+      }
+    };
+    window.libraryAPI.onConvertPs1PopstarterProgress(handleProgress);
+
+    try {
+      const result = await window.libraryAPI.convertPs1ToPopstarter(
+        g.path,
+        g.gameId,
+        g.title || g.gameId,
+        this.ps1ElfPrefix,
+      );
+      if (result.success) {
+        this.addLog('Conversion complete!', 'success');
+        this._libraryService.refreshGamesFiles();
+      } else {
+        this.addLog(`Failed: ${result.message}`, 'error');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.addLog(`Error: ${msg}`, 'error');
+    } finally {
+      window.libraryAPI.removeAllConvertPs1PopstarterProgressListeners();
       this.ps1DialogState = 'done';
       this.running = false;
       if (!this.destroyed) this._cdr.detectChanges();

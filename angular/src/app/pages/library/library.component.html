@@ -83,30 +83,42 @@
             tabindex="-1"
             class="dropdown-content menu glass-strong rounded-box z-10 mt-1 w-60 p-2 shadow-xl"
           >
-            <li>
-              <a (click)="downloadAllArt()">
-                <i-lucide name="image-down" size="16"></i-lucide>Download
-                artwork for all games
-              </a>
-            </li>
-            <li>
-              <a (click)="convertAllToZso()">
-                <i-lucide name="file-archive" size="16"></i-lucide>Convert all
-                PS2 ISOs to ZSO
-              </a>
-            </li>
+            @if (!isActive('APPS')) {
+              <li>
+                <a (click)="downloadAllArt()">
+                  <i-lucide name="image-down" size="16"></i-lucide>Download
+                  artwork for all games
+                </a>
+              </li>
+            }
+            @if (isActive('PS2')) {
+              <li>
+                <a (click)="convertAllToZso()">
+                  <i-lucide name="file-archive" size="16"></i-lucide>Convert all
+                  PS2 ISOs to ZSO
+                </a>
+              </li>
+            }
             <li>
               <a (click)="openRenameDialog()">
                 <i-lucide name="text-cursor-input" size="16"></i-lucide>Rename
                 all games to convention…
               </a>
             </li>
-            <li>
-              <a (click)="convertAllPs1ToPopsLoader()">
-                <i-lucide name="refresh-cw" size="16"></i-lucide>Convert all
-                PS1 games to POPSLoader
-              </a>
-            </li>
+            @if (isActive('APPS')) {
+              <li>
+                <a (click)="convertAllPs1ToPopsLoader()">
+                  <i-lucide name="refresh-cw" size="16"></i-lucide>Convert All PS1 games to RiptOPL/POPSLoader
+                </a>
+              </li>
+            }
+            @if (isActive('PS1')) {
+              <li>
+                <a (click)="convertAllPs1ToPopstarter()">
+                  <i-lucide name="refresh-cw" size="16"></i-lucide>Convert All PS1 games to OPL/Popstarter
+                </a>
+              </li>
+            }
           </ul>
         </div>
       }

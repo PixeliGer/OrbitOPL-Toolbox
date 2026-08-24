@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import path from "path";
 import { createLogger } from "../logger";
 import { sanitizeGameFilename } from "../utils/sanitize";
+import { findPopstarterElf } from "./ps1-import.service";
 
 const log = createLogger("rename");
 
@@ -49,6 +50,55 @@ async function renameVcdFile(
     log.error(msg);
     return msg;
   }
+}
+
+/**
+ * Renames every cover-art file in ART/ that belongs to this game (per
+ * `matches`, tested against the filename portion before its `_TYPE` suffix)
+ * to `<newBaseName>_TYPE.ext`, preserving each file's type suffix.
+ */
+async function renameMatchingCoverArt(
+  artDir: string,
+  matches: (nameBeforeType: string) => boolean,
+  newBaseName: string,
+  onProgress?: (percent: number, stage: string) => void,
+): Promise<number> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(artDir);
+  } catch {
+    return 0;
+  }
+
+  let renamed = 0;
+  for (const name of entries) {
+    if (name.startsWith(".")) continue;
+    const ext = path.extname(name);
+    if (!/^\.(png|jpe?g)$/i.test(ext)) continue;
+    const baseName = name.slice(0, -ext.length);
+    const lastUnderscore = baseName.lastIndexOf("_");
+    if (lastUnderscore < 0) continue;
+    const nameBeforeType = baseName.slice(0, lastUnderscore);
+    const type = baseName.slice(lastUnderscore + 1);
+    if (!matches(nameBeforeType)) continue;
+
+    const newName = `${newBaseName}_${type}${ext}`;
+    if (newName === name) continue;
+    try {
+      await fs.rename(path.join(artDir, name), path.join(artDir, newName));
+      log.verbose(`Renamed artwork: ${name} → ${newName}`);
+      renamed++;
+    } catch (err: unknown) {
+      log.warn(
+        `Failed to rename artwork ${name} → ${newName}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+  if (renamed > 0) {
+    onProgress?.(90, `Renamed ${renamed} artwork file(s): *_TYPE → ${newBaseName}_TYPE`);
+    log.info(`Renamed ${renamed} artwork file(s) in ${artDir} to "${newBaseName}_*"`);
+  }
+  return renamed;
 }
 
 async function renamePopsSubfolder(
@@ -337,10 +387,10 @@ export async function renamePs1LauncherStep2(
 
 /**
  * Converts a POPStarter-launched PS1 game to POPSLoader style: strips the
- * "<GameID>." prefix from the VCD filename and deletes the APPS launcher
- * folder. Cover art is unaffected — it's already keyed by GameID, and OPL
- * resolves the GameID by reading it straight out of the VCD's header
- * regardless of filename, so no art needs to move.
+ * "<GameID>." prefix from the VCD filename, deletes the APPS launcher
+ * folder, and renames any matching ART/ files (previously keyed by GameID
+ * or the launcher's ELF filename) to the "<Title>_TYPE.png" convention
+ * POPSLoader/RiptOPL expects.
  */
 export async function convertPs1LauncherToPopsLoader(
   vcdPath: string,
@@ -384,7 +434,99 @@ export async function convertPs1LauncherToPopsLoader(
     return { success: false, newVcdPath, message: msg };
   }
 
+  onProgress?.(88, "Renaming cover art to match the new filename…");
+  const gameIdUpper = gameId.toUpperCase();
+  await renameMatchingCoverArt(
+    path.join(oplRoot, "ART"),
+    (nameBeforeType) => nameBeforeType.toUpperCase().includes(gameIdUpper),
+    oldTitle,
+    onProgress,
+  );
+
   onProgress?.(PROGRESS_DONE, "Conversion complete");
   log.info(`PS1 convert-to-POPSLoader complete: "${vcdBasename}" → "${newVcdBasename}"`);
+  return { success: true, newVcdPath };
+}
+
+/**
+ * Reverses `convertPs1LauncherToPopsLoader`: prefixes the VCD filename with
+ * "<GameID>.", recreates the APPS/POPStarter launcher (POPSTARTER.ELF +
+ * title.cfg), and renames any matching ART/ files from the "<Title>_TYPE.png"
+ * convention to the "<ELF filename>_TYPE.png" convention POPStarter expects.
+ */
+export async function convertPs1LauncherToPopstarter(
+  vcdPath: string,
+  gameId: string,
+  gameName: string,
+  elfPrefix: string,
+  onProgress?: (percent: number, stage: string) => void,
+): Promise<{
+  success: boolean;
+  newVcdPath?: string;
+  message?: string;
+}> {
+  const popsDir = path.dirname(vcdPath);
+  const oplRoot = path.resolve(popsDir, "..");
+
+  const vcdBasename = path.basename(vcdPath);
+  const vcdExt = path.extname(vcdBasename);
+  const title = vcdBasename.slice(0, -vcdExt.length);
+  const safeTitle = sanitizeGameFilename(title) || title;
+
+  if (title.toLowerCase().startsWith(`${gameId.toLowerCase()}.`)) {
+    return { success: false, message: "This game's VCD filename already has a GameID prefix." };
+  }
+
+  log.info(`PS1 convert-to-POPStarter: "${vcdBasename}" (gameId=${gameId})`);
+
+  onProgress?.(0, "Setting up POPStarter launcher");
+  const popstarterElf = await findPopstarterElf();
+  if (!popstarterElf) {
+    return {
+      success: false,
+      message:
+        "POPSTARTER.ELF not found in assets. Please place the Popstarter ELF file at assets/POPSTARTER.ELF.",
+    };
+  }
+
+  const newVcdBasename = `${gameId}.${safeTitle}${vcdExt}`;
+  const newVcdPath = path.join(popsDir, newVcdBasename);
+
+  const vcdError = await renameVcdFile(vcdPath, newVcdPath, vcdBasename, newVcdBasename, onProgress);
+  if (vcdError) return { success: false, message: vcdError };
+
+  const elfFilename = elfPrefix
+    ? `${elfPrefix}${gameId}.${safeTitle}.ELF`
+    : `${gameId}.${safeTitle}.ELF`;
+  const appsFolderName = `POPS_${safeTitle}`;
+  const appsGameDir = path.join(oplRoot, "APPS", appsFolderName);
+
+  onProgress?.(50, `Creating APPS launcher: ${appsFolderName}/`);
+  try {
+    await fs.mkdir(appsGameDir, { recursive: true });
+    await fs.copyFile(popstarterElf, path.join(appsGameDir, elfFilename));
+    await fs.writeFile(
+      path.join(appsGameDir, "title.cfg"),
+      `title=${gameName}\nboot=${elfFilename}\nGameID=${gameId}\n`,
+      "utf-8"
+    );
+    log.info(`Created POPStarter launcher APPS/${appsFolderName}/${elfFilename}`);
+  } catch (err: unknown) {
+    const msg = `VCD renamed, but failed to create APPS launcher: ${err instanceof Error ? err.message : String(err)}`;
+    log.error(msg);
+    return { success: false, newVcdPath, message: msg };
+  }
+
+  onProgress?.(88, "Renaming cover art to match the new launcher…");
+  const safeTitleLower = safeTitle.toLowerCase();
+  await renameMatchingCoverArt(
+    path.join(oplRoot, "ART"),
+    (nameBeforeType) => nameBeforeType.toLowerCase() === safeTitleLower,
+    elfFilename,
+    onProgress,
+  );
+
+  onProgress?.(PROGRESS_DONE, "Conversion complete");
+  log.info(`PS1 convert-to-POPStarter complete: "${vcdBasename}" → "${newVcdBasename}"`);
   return { success: true, newVcdPath };
 }

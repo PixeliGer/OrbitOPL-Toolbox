@@ -3,13 +3,15 @@
   <div class="flex items-center gap-2 border-b border-base-content/10 px-5 py-3">
     <i-lucide name="text-cursor-input" size="18" class="text-accent"></i-lucide>
     <h2 class="font-display text-sm font-semibold tracking-wide">
-      @if (isPs1Launcher) {
-      @if (ps1DialogState === 'input') { Rename PS1 App Game }
+      @if (isPs1Game) {
+      @if (ps1DialogState === 'input') {
+        {{ isPs1Launcher ? 'Rename PS1 App Game' : 'Convert PS1 Game' }}
+      }
       @else if (ps1DialogState === 'running') {
-        {{ ps1Action === 'convert' ? 'Converting to POPSLoader...' : 'Renaming PS1 App Game...' }}
+        {{ ps1ActionLabel }}...
       }
       @else {
-        {{ ps1Action === 'convert' ? 'Conversion complete' : 'Rename complete' }}
+        {{ ps1DoneLabel }}
       }
       } @else {
       {{ isSingle ? "Rename game to convention" : "Rename all games to convention" }}
@@ -24,11 +26,12 @@
     @if (!done) {
 
     <!-- ════════════════════════════════════════════════════════════════
-         PS1 LAUNCHER FLOW
+         PS1 LAUNCHER / POPSLOADER FLOW
          ════════════════════════════════════════════════════════════════ -->
-    @if (isPs1Launcher) {
+    @if (isPs1Game) {
 
     @if (ps1DialogState === 'input') {
+    @if (isPs1Launcher) {
     <fieldset class="fieldset">
       <legend class="fieldset-legend">New name for the PS1 App Game</legend>
       <input #ps1TitleInput type="text" class="input w-full"
@@ -67,13 +70,44 @@
       <p class="text-base-content/70">
         Drops the GameID prefix and removes the APPS launcher, so this game
         works with POPSLoader's disc-swap and per-game files. Cover art is
-        unaffected.
+        renamed to match.
       </p>
       <button class="btn btn-outline btn-xs mt-2" (click)="convertToPopsLoader()" [disabled]="running">
         <i-lucide name="refresh-cw" size="13"></i-lucide>
         Convert to POPSLoader
       </button>
     </div>
+    } @else if (isPs1NonLauncher) {
+    <div class="rounded-md border border-base-content/10 bg-base-100/30 p-3 text-xs leading-relaxed">
+      <span class="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+        <i-lucide name="refresh-cw" size="14"></i-lucide>
+        Convert to POPStarter
+      </span>
+      <p class="text-base-content/70">
+        Prefixes the VCD with its GameID and recreates the APPS launcher, so
+        this game works with the standard POPStarter flow. Cover art is
+        renamed to match.
+      </p>
+      <div class="mt-2 flex flex-col gap-1.5">
+        <label class="flex cursor-pointer items-center gap-2">
+          <input type="radio" name="radio-rename-elfprefix" class="radio radio-primary radio-xs"
+            [checked]="ps1ElfPrefix === 'XX.'" [disabled]="running"
+            (change)="setPs1ElfPrefix('XX.')" />
+          <span class="text-xs">XX. — USB / MX4SIO</span>
+        </label>
+        <label class="flex cursor-pointer items-center gap-2">
+          <input type="radio" name="radio-rename-elfprefix" class="radio radio-primary radio-xs"
+            [checked]="ps1ElfPrefix === 'SB.'" [disabled]="running"
+            (change)="setPs1ElfPrefix('SB.')" />
+          <span class="text-xs">SB. — SMB network share</span>
+        </label>
+      </div>
+      <button class="btn btn-outline btn-xs mt-2" (click)="convertToPopstarter()" [disabled]="running">
+        <i-lucide name="refresh-cw" size="13"></i-lucide>
+        Convert to POPStarter
+      </button>
+    </div>
+    }
     }
 
     @if (ps1DialogState === 'running' || ps1DialogState === 'done') {
@@ -190,15 +224,17 @@
   </div>
 
   <div class="flex justify-end gap-2 border-t border-base-content/10 px-5 py-3">
-    @if (isPs1Launcher) {
+    @if (isPs1Game) {
     @if (ps1DialogState === 'input') {
     <button class="btn btn-ghost btn-sm" (click)="close()" [disabled]="running">
       Cancel
     </button>
+    @if (isPs1Launcher) {
     <button class="btn btn-primary btn-sm" (click)="run()" [disabled]="!hasChanges">
       <i-lucide name="text-cursor-input" size="15"></i-lucide>
       Rename game
     </button>
+    }
     }
     @else {
     <button class="btn btn-primary btn-sm" (click)="close()" [disabled]="running">Close</button>

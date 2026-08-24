@@ -12,7 +12,8 @@ export type ImportJobType =
   | 'apps'
   | 'artwork'
   | 'rename'
-  | 'ps1-convert-popsloader';
+  | 'ps1-convert-popsloader'
+  | 'ps1-convert-popstarter';
 export type JobStatus =
   | 'queued'
   | 'running'
@@ -271,6 +272,8 @@ export class JobsService {
         return this.runRenameJob(job);
       case 'ps1-convert-popsloader':
         return this.runPs1ConvertPopsLoaderJob(job);
+      case 'ps1-convert-popstarter':
+        return this.runPs1ConvertPopstarterJob(job);
       case 'ps2-dvd':
       default:
         return this.runPs2DvdJob(job, dirPath);
@@ -434,6 +437,16 @@ export class JobsService {
   private async runPs1ConvertPopsLoaderJob(job: ImportJob) {
     this.patchJob(job.id, { stage: 'Converting to POPSLoader…', percent: 50 });
     return window.libraryAPI.convertPs1ToPopsLoader(job.filePath, job.gameId);
+  }
+
+  private async runPs1ConvertPopstarterJob(job: ImportJob) {
+    this.patchJob(job.id, { stage: 'Converting to POPStarter…', percent: 50 });
+    return window.libraryAPI.convertPs1ToPopstarter(
+      job.filePath,
+      job.gameId,
+      job.gameName,
+      job.elfPrefix || 'XX.',
+    );
   }
 
   private async runZsoJob(job: ImportJob) {

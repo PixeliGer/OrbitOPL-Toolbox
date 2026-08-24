@@ -86,6 +86,26 @@ declare interface Window {
     /** Remove all PS1-to-POPSLoader conversion progress listeners. */
     removeAllConvertPs1PopsLoaderProgressListeners: () => void;
 
+    /**
+     * Reverses convertPs1ToPopsLoader: prefixes the VCD with its GameID,
+     * recreates the APPS/POPStarter launcher, and renames matching ART/
+     * files back to the launcher's ELF-filename convention.
+     */
+    convertPs1ToPopstarter: (
+      vcdPath: string,
+      gameId: string,
+      gameName: string,
+      elfPrefix: string,
+    ) => Promise<{ success: boolean; newVcdPath?: string; message?: string }>;
+
+    /** Listen for PS1-to-POPStarter conversion progress events. */
+    onConvertPs1PopstarterProgress: (
+      callback: (progress: { percent: number; stage: string }) => void,
+    ) => void;
+
+    /** Remove all PS1-to-POPStarter conversion progress listeners. */
+    removeAllConvertPs1PopstarterProgressListeners: () => void;
+
     /** Listen for PS1 delete progress events. */
     onDeletePs1Progress: (
       callback: (entry: {

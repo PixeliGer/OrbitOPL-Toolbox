@@ -3,6 +3,7 @@ import {
   renamePs1LauncherStep1,
   renamePs1LauncherStep2,
   convertPs1LauncherToPopsLoader,
+  convertPs1LauncherToPopstarter,
 } from "../services/rename.service";
 
 export function registerRenameIpc(): void {
@@ -44,6 +45,27 @@ export function registerRenameIpc(): void {
       return convertPs1LauncherToPopsLoader(vcdPath, gameId, (percent, stage) => {
         event.sender.send("convert-ps1-popsloader-progress", { percent, stage });
       });
+    }
+  );
+
+  ipcMain.handle(
+    "convert-ps1-to-popstarter",
+    async (
+      event,
+      vcdPath: string,
+      gameId: string,
+      gameName: string,
+      elfPrefix: string
+    ) => {
+      return convertPs1LauncherToPopstarter(
+        vcdPath,
+        gameId,
+        gameName,
+        elfPrefix,
+        (percent, stage) => {
+          event.sender.send("convert-ps1-popstarter-progress", { percent, stage });
+        }
+      );
     }
   );
 }
