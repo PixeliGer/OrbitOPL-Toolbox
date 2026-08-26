@@ -28,6 +28,7 @@ export interface ZsoResult {
   success: boolean;
   message?: string;
   zsoPath?: string;
+  isoPath?: string;
   originalBytes?: number;
   compressedBytes?: number;
 }
@@ -376,5 +377,131 @@ export async function streamZsoContents(
     return { success: false, message: err?.message || String(err) };
   } finally {
     await handle?.close().catch(() => {});
+  }
+}
+
+/**
+ * ZSO (ZISO) -> ISO decompressor — the inverse of `compressIsoToZso`. Parses
+ * the same header/index and LZ4-block-decompresses every block back to its
+ * raw 2 KiB, writing the result out as a plain ISO.
+ */
+export async function decompressZsoToIso(
+  zsoPath: string,
+  isoPath: string,
+  deleteOriginal: boolean,
+  onProgress?: (percent: number, stage: string) => void,
+): Promise<ZsoResult> {
+  let input: fs.FileHandle | null = null;
+  let output: fs.FileHandle | null = null;
+
+  try {
+    input = await fs.open(zsoPath, "r");
+
+    const header = Buffer.alloc(HEADER_SIZE);
+    await input.read(header, 0, HEADER_SIZE, 0);
+    if (header.readUInt32LE(0x00) !== ZISO_MAGIC) {
+      log.error(`Not a ZISO image (bad magic): ${zsoPath}`);
+      return { success: false, message: "Not a ZSO (ZISO) image." };
+    }
+
+    const headerSize = header.readUInt32LE(0x04);
+    const totalBytes = Number(header.readBigUInt64LE(0x08));
+    const blockSize = header.readUInt32LE(0x10);
+    const align = header.readUInt8(0x15);
+
+    if (!blockSize || !totalBytes) {
+      log.error(`Malformed ZISO header in ${zsoPath}`);
+      return { success: false, message: "ZSO header is malformed." };
+    }
+
+    const numBlocks = Math.ceil(totalBytes / blockSize);
+    const indexSize = (numBlocks + 1) * 4;
+    const indexBuf = Buffer.alloc(indexSize);
+    await input.read(indexBuf, 0, indexSize, headerSize);
+
+    log.info(
+      `Decompressing ZSO → ISO: ${zsoPath} (${formatBytes(totalBytes)}, ` +
+        `${numBlocks} blocks of ${blockSize}B, align=${align})`,
+    );
+
+    output = await fs.open(isoPath, "w");
+
+    const unit = Math.pow(2, align);
+    const srcBuf = Buffer.alloc(blockSize + unit + 16);
+    const dstBuf = Buffer.alloc(blockSize);
+    let produced = 0;
+    let lastProgress = -1;
+    let lastVerboseMilestone = 0;
+
+    for (let i = 0; i < numBlocks; i++) {
+      const rawEntry = indexBuf.readUInt32LE(i * 4) >>> 0;
+      const rawNext = indexBuf.readUInt32LE((i + 1) * 4) >>> 0;
+      const isCompressed = (rawEntry & NOT_COMPRESSED) === 0;
+      const offset = (rawEntry & 0x7fffffff) * unit;
+      const nextOffset = (rawNext & 0x7fffffff) * unit;
+      const readLen = nextOffset - offset;
+      const outLen = Math.min(blockSize, totalBytes - produced);
+
+      if (readLen > 0) {
+        const cappedLen = Math.min(readLen, srcBuf.length);
+        await input.read(srcBuf, 0, cappedLen, offset);
+
+        let chunk: Buffer;
+        if (isCompressed) {
+          decompressLz4BlockBounded(srcBuf, dstBuf, outLen);
+          chunk = dstBuf.subarray(0, outLen);
+        } else {
+          chunk = srcBuf.subarray(0, outLen);
+        }
+
+        await output.write(chunk, 0, outLen, produced);
+      }
+
+      produced += outLen;
+
+      const percent = Math.floor((produced / totalBytes) * 100);
+      if (onProgress && percent !== lastProgress) {
+        lastProgress = percent;
+        onProgress(percent, "Decompressing ZSO");
+      }
+      if (percent >= lastVerboseMilestone + 25) {
+        lastVerboseMilestone = percent - (percent % 25);
+        log.verbose(
+          `ZSO decompression ${lastVerboseMilestone}% — ${i + 1}/${numBlocks} blocks, ` +
+            `${formatBytes(produced)} written so far`,
+        );
+      }
+    }
+
+    await output.close();
+    output = null;
+    await input.close();
+    input = null;
+
+    if (deleteOriginal) {
+      await fs.unlink(zsoPath);
+      log.verbose(
+        `Deleted source ZSO after successful decompression: ${zsoPath}`,
+      );
+    }
+
+    if (onProgress) onProgress(100, "ISO complete");
+
+    log.info(
+      `ZSO decompression complete: ${formatBytes(totalBytes)} written → ${isoPath}`,
+    );
+
+    return {
+      success: true,
+      isoPath,
+      originalBytes: totalBytes,
+      compressedBytes: totalBytes,
+    };
+  } catch (err: any) {
+    log.error(`ZSO decompression failed for ${zsoPath}:`, err?.message || err);
+    return { success: false, message: err?.message || String(err) };
+  } finally {
+    await input?.close().catch(() => {});
+    await output?.close().catch(() => {});
   }
 }

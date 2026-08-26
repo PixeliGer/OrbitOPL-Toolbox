@@ -9,6 +9,8 @@ export type ImportJobType =
   | 'ps2-cd'
   | 'ps1'
   | 'zso'
+  | 'zso-to-iso'
+  | 'vcd-to-bin'
   | 'apps'
   | 'artwork'
   | 'rename'
@@ -44,7 +46,10 @@ export interface ImportJob {
   artTypes?: string[];
   /** Artwork only: silently drop already-saved types instead of prompting to overwrite. */
   skipExisting?: boolean;
-  /** ZSO only: remove the source ISO once compression succeeds. */
+  /**
+   * ZSO/zso-to-iso/vcd-to-bin only: remove the source file once the
+   * conversion succeeds.
+   */
   deleteOriginal?: boolean;
   /**
    * PS2 DVD only: use OPL's "new" naming convention — rename to just
@@ -264,6 +269,10 @@ export class JobsService {
         return this.runPs1Job(job, dirPath);
       case 'zso':
         return this.runZsoJob(job);
+      case 'zso-to-iso':
+        return this.runZsoToIsoJob(job);
+      case 'vcd-to-bin':
+        return this.runVcdToBinJob(job);
       case 'apps':
         return this.runAppsJob(job, dirPath);
       case 'artwork':
@@ -465,6 +474,46 @@ export class JobsService {
       );
     } finally {
       window.libraryAPI.removeAllZsoCompressProgressListeners();
+    }
+  }
+
+  private async runZsoToIsoJob(job: ImportJob) {
+    const isoPath = job.filePath.replace(/\.zso$/i, '.iso');
+    window.libraryAPI.onZsoDecompressProgress((progress) =>
+      this.patchJob(job.id, {
+        percent: progress.percent,
+        stage: progress.stage,
+      }),
+    );
+    try {
+      return await window.libraryAPI.decompressZsoToIso(
+        job.filePath,
+        isoPath,
+        job.deleteOriginal ?? true,
+      );
+    } finally {
+      window.libraryAPI.removeAllZsoDecompressProgressListeners();
+    }
+  }
+
+  private async runVcdToBinJob(job: ImportJob) {
+    const binPath = job.filePath.replace(/\.vcd$/i, '.bin');
+    const cuePath = job.filePath.replace(/\.vcd$/i, '.cue');
+    window.libraryAPI.onVcdToBinProgress((progress) =>
+      this.patchJob(job.id, {
+        percent: progress.percent,
+        stage: progress.stage,
+      }),
+    );
+    try {
+      return await window.libraryAPI.convertVcdToBin(
+        job.filePath,
+        binPath,
+        cuePath,
+        job.deleteOriginal ?? false,
+      );
+    } finally {
+      window.libraryAPI.removeAllVcdToBinProgressListeners();
     }
   }
 

@@ -60,6 +60,22 @@
             >
           </li>
         }
+        @if (canDecompressZso()) {
+          <li>
+            <a (click)="convertToIso()"
+              ><i-lucide name="file-output" [size]="16"></i-lucide>Convert to
+              ISO</a
+            >
+          </li>
+        }
+        @if (canConvertVcdToBin()) {
+          <li>
+            <a (click)="convertToBinCue()"
+              ><i-lucide name="file-output" [size]="16"></i-lucide>Convert to
+              BIN/CUE</a
+            >
+          </li>
+        }
         @if (canRenameConvention()) {
           <li>
             <a (click)="openRename()"

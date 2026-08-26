@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
+import path from "path";
 import {
   parseCueSheet,
   msfToSectors,
@@ -17,6 +18,18 @@ const SIGNATURE = Buffer.from([0x6b, 0x48, 0x6e, 0x20]); // "kHn "
 
 function toBcd(value: number): number {
   return Math.floor(value / 10) * 16 + (value % 10);
+}
+
+function fromBcd(value: number): number {
+  return Math.floor(value / 16) * 10 + (value % 16);
+}
+
+function pad2(value: number): string {
+  return value.toString().padStart(2, "0");
+}
+
+function formatMsf(msf: { mm: number; ss: number; ff: number }): string {
+  return `${pad2(msf.mm)}:${pad2(msf.ss)}:${pad2(msf.ff)}`;
 }
 
 function isDataTrack(track: CueTrack): boolean {
@@ -325,4 +338,235 @@ export async function convertToVcd(
 
   if (onProgress) onProgress(100, "Conversion complete");
   log.info(`VCD conversion complete → ${outputVcdPath}`);
+}
+
+interface VcdTrackInfo {
+  number: number;
+  isData: boolean;
+  index00: MsfBcd;
+  index01: MsfBcd;
+}
+
+interface VcdHeaderInfo {
+  trackCount: number;
+  tracks: VcdTrackInfo[];
+}
+
+/**
+ * Parses the fixed 1 MiB "kHn " header `buildHeader()` writes, recovering
+ * each track's type and INDEX 00/01 timestamps (still including the +2/+4
+ * second fudge `buildHeader()` bakes in — callers undo that separately).
+ */
+function parseVcdHeader(header: Buffer): VcdHeaderInfo {
+  if (!SIGNATURE.equals(header.subarray(1024, 1024 + SIGNATURE.length))) {
+    throw new Error("Not a valid VCD file (missing kHn signature).");
+  }
+
+  const trackCount = fromBcd(header[17]);
+  if (!trackCount || trackCount < 1 || trackCount > 99) {
+    throw new Error("VCD header has an invalid track count.");
+  }
+
+  const tracks: VcdTrackInfo[] = [];
+  for (let i = 0; i < trackCount; i++) {
+    const offset = 30 + i * 10;
+    tracks.push({
+      number: fromBcd(header[offset + 2]),
+      isData: header[offset] === 0x41,
+      index00: {
+        mm: fromBcd(header[offset + 3]),
+        ss: fromBcd(header[offset + 4]),
+        ff: fromBcd(header[offset + 5]),
+      },
+      index01: {
+        mm: fromBcd(header[offset + 7]),
+        ss: fromBcd(header[offset + 8]),
+        ff: fromBcd(header[offset + 9]),
+      },
+    });
+  }
+
+  return { trackCount, tracks };
+}
+
+/**
+ * Converts a VCD (POPS/PS1) image back to BIN/CUE — the inverse of
+ * `convertToVcd()`. The VCD header only stores each track's INDEX 00/01
+ * timestamps *after* `buildHeader()`'s +2/+4 second adjustment, and whether
+ * that adjustment was +2 or +4 (the "CDRWIN fix") isn't recorded anywhere —
+ * so this reconstructs it by testing the +4/gap-inserted hypothesis first:
+ * if the 150-sector run at the hypothesised gap position is all zero, this
+ * is a CDRWIN-style single-pregap disc and that physical gap is stripped
+ * back out; otherwise it falls back to +2 with no gap. This exactly
+ * round-trips discs this tool produced; third-party VCDs with more unusual
+ * pregap/postgap layouts may need manual CUE touch-up.
+ *
+ * Track MODE is not recoverable from the header (it only stores "data" vs
+ * "audio"), so data tracks are always emitted as MODE2/2352.
+ */
+export async function convertVcdToBin(
+  vcdPath: string,
+  outputBinPath: string,
+  outputCuePath: string,
+  onProgress?: (percent: number, stage: string) => void
+): Promise<{ trackCount: number; hadGap: boolean }> {
+  const fileSize = (await fs.stat(vcdPath)).size;
+  if (fileSize <= HEADER_SIZE) {
+    throw new Error("VCD file is too small to contain a valid header.");
+  }
+
+  if (onProgress) onProgress(5, "Reading VCD header");
+
+  const handle = await fs.open(vcdPath, "r");
+  let headerInfo: VcdHeaderInfo;
+  let header: Buffer;
+  try {
+    header = Buffer.alloc(HEADER_SIZE);
+    await handle.read(header, 0, HEADER_SIZE, 0);
+    headerInfo = parseVcdHeader(header);
+
+    const payloadSize = fileSize - HEADER_SIZE;
+    const { tracks } = headerInfo;
+
+    // Detect the CDRWIN gap fix: try +4s on the first non-data track and see
+    // if a physical 150-sector zero gap sits where that would put it.
+    let addSec = 2;
+    let gapOffset = -1;
+    const firstAudioIdx = tracks.findIndex((t) => !t.isData);
+    if (firstAudioIdx > 0) {
+      const candidateRaw = addSeconds(
+        tracks[firstAudioIdx].index01.mm,
+        tracks[firstAudioIdx].index01.ss,
+        tracks[firstAudioIdx].index01.ff,
+        -4
+      );
+      const candidateOffset =
+        msfToSectors(candidateRaw.mm, candidateRaw.ss, candidateRaw.ff) *
+        SECTOR_SIZE;
+      const gapSize = 150 * SECTOR_SIZE;
+      if (candidateOffset >= 0 && candidateOffset + gapSize <= payloadSize) {
+        const probe = Buffer.alloc(gapSize);
+        await handle.read(probe, 0, gapSize, HEADER_SIZE + candidateOffset);
+        if (probe.every((b) => b === 0)) {
+          addSec = 4;
+          gapOffset = candidateOffset;
+        }
+      }
+    }
+
+    log.info(
+      `Converting VCD→BIN/CUE: ${vcdPath} (${tracks.length} track(s)` +
+        (gapOffset >= 0 ? `, CDRWIN gap at byte ${gapOffset}` : "") +
+        ")"
+    );
+
+    if (onProgress) onProgress(15, "Rebuilding CUE sheet");
+
+    const cueLines: string[] = [
+      `FILE "${path.basename(outputBinPath)}" BINARY`,
+    ];
+
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      const type = track.isData ? "MODE2/2352" : "AUDIO";
+      cueLines.push(`  TRACK ${pad2(track.number)} ${type}`);
+
+      const sub = i === 0 ? 2 : addSec;
+      const index01Raw = addSeconds(
+        track.index01.mm,
+        track.index01.ss,
+        track.index01.ff,
+        -sub
+      );
+
+      if (i === firstAudioIdx && gapOffset >= 0) {
+        cueLines.push("    PREGAP 00:02:00");
+      } else if (i > 0) {
+        const index00Raw = addSeconds(
+          track.index00.mm,
+          track.index00.ss,
+          track.index00.ff,
+          -sub
+        );
+        if (
+          index00Raw.mm !== index01Raw.mm ||
+          index00Raw.ss !== index01Raw.ss ||
+          index00Raw.ff !== index01Raw.ff
+        ) {
+          cueLines.push(`    INDEX 00 ${formatMsf(index00Raw)}`);
+        }
+      } else if (
+        track.index00.mm !== 0 ||
+        track.index00.ss !== 0 ||
+        track.index00.ff !== 0
+      ) {
+        cueLines.push(`    INDEX 00 ${formatMsf(track.index00)}`);
+      }
+
+      cueLines.push(`    INDEX 01 ${formatMsf(index01Raw)}`);
+    }
+
+    await fs.writeFile(outputCuePath, cueLines.join("\n") + "\n", "utf-8");
+
+    if (onProgress) onProgress(20, "Extracting BIN data");
+
+    const writeStream = fsSync.createWriteStream(outputBinPath);
+    const gapSize = 150 * SECTOR_SIZE;
+    let writtenBytes = 0;
+    const reportProgress = (chunkLen: number) => {
+      writtenBytes += chunkLen;
+      if (onProgress) {
+        onProgress(
+          20 + Math.round((writtenBytes / payloadSize) * 78),
+          "Writing BIN data"
+        );
+      }
+    };
+
+    if (gapOffset >= 0) {
+      await new Promise<void>((resolve, reject) => {
+        const part1 = fsSync.createReadStream(vcdPath, {
+          start: HEADER_SIZE,
+          end: HEADER_SIZE + gapOffset - 1,
+        });
+        part1.on("data", (chunk: Buffer) => reportProgress(chunk.length));
+        part1.on("error", reject);
+        part1.on("end", resolve);
+        part1.pipe(writeStream, { end: false });
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const part2 = fsSync.createReadStream(vcdPath, {
+          start: HEADER_SIZE + gapOffset + gapSize,
+        });
+        part2.on("data", (chunk: Buffer) => reportProgress(chunk.length));
+        part2.on("error", reject);
+        part2.on("end", resolve);
+        part2.pipe(writeStream, { end: false });
+      });
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        const readStream = fsSync.createReadStream(vcdPath, {
+          start: HEADER_SIZE,
+        });
+        readStream.on("data", (chunk: Buffer) => reportProgress(chunk.length));
+        readStream.on("error", reject);
+        readStream.on("end", resolve);
+        readStream.pipe(writeStream, { end: false });
+      });
+    }
+
+    writeStream.end();
+    await new Promise<void>((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    if (onProgress) onProgress(100, "Conversion complete");
+    log.info(`VCD→BIN/CUE conversion complete → ${outputBinPath}`);
+
+    return { trackCount: tracks.length, hadGap: gapOffset >= 0 };
+  } finally {
+    await handle.close().catch(() => {});
+  }
 }

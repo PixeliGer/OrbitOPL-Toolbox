@@ -9,6 +9,7 @@ import { registerCfgIpc } from "./cfg.ipc";
 import { registerAppsIpc } from "./apps.ipc";
 import { registerVmcIpc } from "./vmc.ipc";
 import { registerZsoIpc } from "./zso.ipc";
+import { registerVcdIpc } from "./vcd.ipc";
 import { registerSettingsIpc } from "./settings.ipc";
 
 export function registerAllIpc(): void {
@@ -23,5 +24,6 @@ export function registerAllIpc(): void {
   registerAppsIpc();
   registerVmcIpc();
   registerZsoIpc();
+  registerVcdIpc();
   registerSettingsIpc();
 }

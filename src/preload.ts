@@ -302,6 +302,50 @@ function buildLibraryAPI() {
     removeAllZsoCompressProgressListeners: () => {
       ipcRenderer.removeAllListeners("zso-compress-progress");
     },
+    decompressZsoToIso: (
+      zsoPath: string,
+      isoPath: string,
+      deleteOriginal: boolean
+    ) =>
+      ipcRenderer.invoke(
+        "decompress-zso-to-iso",
+        zsoPath,
+        isoPath,
+        deleteOriginal
+      ),
+    onZsoDecompressProgress: (
+      callback: (progress: { percent: number; stage: string }) => void
+    ) => {
+      ipcRenderer.on("zso-decompress-progress", (_event, progress) =>
+        callback(progress)
+      );
+    },
+    removeAllZsoDecompressProgressListeners: () => {
+      ipcRenderer.removeAllListeners("zso-decompress-progress");
+    },
+    convertVcdToBin: (
+      vcdPath: string,
+      binPath: string,
+      cuePath: string,
+      deleteOriginal: boolean
+    ) =>
+      ipcRenderer.invoke(
+        "convert-vcd-to-bin",
+        vcdPath,
+        binPath,
+        cuePath,
+        deleteOriginal
+      ),
+    onVcdToBinProgress: (
+      callback: (progress: { percent: number; stage: string }) => void
+    ) => {
+      ipcRenderer.on("vcd-to-bin-progress", (_event, progress) =>
+        callback(progress)
+      );
+    },
+    removeAllVcdToBinProgressListeners: () => {
+      ipcRenderer.removeAllListeners("vcd-to-bin-progress");
+    },
     moveFile: (sourcePath: string, destPath: string) =>
       ipcRenderer.invoke("move-file", sourcePath, destPath),
     onMoveFileProgress: (callback: (progress: any) => void) => {

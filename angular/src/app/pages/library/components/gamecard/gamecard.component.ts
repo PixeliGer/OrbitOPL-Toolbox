@@ -112,6 +112,23 @@ export class GamecardComponent {
     return system === 'PS2' && isIso;
   });
 
+  /** Whether a PS2 ZSO can be decompressed back to an ISO. */
+  readonly canDecompressZso = computed(() => {
+    const g = this.game();
+    if (!g) return false;
+    const system = g.system ?? 'PS2';
+    const isZso = g.format === 'ZSO' || g.extension?.toLowerCase() === 'zso';
+    return system === 'PS2' && isZso;
+  });
+
+  /** Whether a PS1 VCD can be converted back to BIN/CUE. */
+  readonly canConvertVcdToBin = computed(() => {
+    const g = this.game();
+    if (!g) return false;
+    const isVcd = g.format === 'VCD' || g.extension?.toLowerCase() === 'vcd';
+    return g.system === 'PS1' && isVcd;
+  });
+
   /** Whether the file can be renamed to the OPL naming convention. */
   readonly canRenameConvention = computed(() => {
     const g = this.game();
@@ -213,6 +230,56 @@ export class GamecardComponent {
         gameName: g.title || '',
         downloadArtwork: false,
         deleteOriginal: true,
+      },
+    ]);
+  }
+
+  /** Enqueue a ZSO -> ISO decompression job. */
+  async convertToIso() {
+    const g = this.game();
+    if (!g || !this.canDecompressZso()) return;
+    const confirmed = await this._confirm.confirm({
+      title: 'Convert to ISO',
+      message: `Decompress "${g.title || g.gameId}" back to ISO?`,
+      detail:
+        'This creates a full-size .iso and removes the original .zso once it succeeds.',
+      confirmLabel: 'Convert',
+    });
+    if (!confirmed) return;
+    this._jobs.enqueue([
+      {
+        type: 'zso-to-iso',
+        label: g.title || g.gameId || g.filename,
+        filePath: g.path,
+        gameId: g.gameId,
+        gameName: g.title || '',
+        downloadArtwork: false,
+        deleteOriginal: true,
+      },
+    ]);
+  }
+
+  /** Enqueue a VCD -> BIN/CUE conversion job. */
+  async convertToBinCue() {
+    const g = this.game();
+    if (!g || !this.canConvertVcdToBin()) return;
+    const confirmed = await this._confirm.confirm({
+      title: 'Convert to BIN/CUE',
+      message: `Extract "${g.title || g.gameId}" back to BIN/CUE?`,
+      detail:
+        'This writes a .bin and .cue alongside the .vcd. The .vcd itself is left in place.',
+      confirmLabel: 'Convert',
+    });
+    if (!confirmed) return;
+    this._jobs.enqueue([
+      {
+        type: 'vcd-to-bin',
+        label: g.title || g.gameId || g.filename,
+        filePath: g.path,
+        gameId: g.gameId,
+        gameName: g.title || '',
+        downloadArtwork: false,
+        deleteOriginal: false,
       },
     ]);
   }

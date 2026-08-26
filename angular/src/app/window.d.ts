@@ -226,6 +226,37 @@ declare interface Window {
     /** Remove all ZSO compression progress listeners. */
     removeAllZsoCompressProgressListeners: () => void;
 
+    /** Decompress a ZSO back to a plain ISO. */
+    decompressZsoToIso: (
+      zsoPath: string,
+      isoPath: string,
+      deleteOriginal: boolean,
+    ) => Promise<any>;
+
+    /** Listen for ZSO decompression progress events. */
+    onZsoDecompressProgress: (
+      callback: (progress: { percent: number; stage: string }) => void,
+    ) => void;
+
+    /** Remove all ZSO decompression progress listeners. */
+    removeAllZsoDecompressProgressListeners: () => void;
+
+    /** Convert a VCD (POPS/PS1) image back to BIN/CUE. */
+    convertVcdToBin: (
+      vcdPath: string,
+      binPath: string,
+      cuePath: string,
+      deleteOriginal: boolean,
+    ) => Promise<any>;
+
+    /** Listen for VCD -> BIN/CUE conversion progress events. */
+    onVcdToBinProgress: (
+      callback: (progress: { percent: number; stage: string }) => void,
+    ) => void;
+
+    /** Remove all VCD -> BIN/CUE conversion progress listeners. */
+    removeAllVcdToBinProgressListeners: () => void;
+
     /** List all APPS folders (ELF homebrew). */
     getApps: (oplRoot: string) => Promise<{
       success: boolean;
