@@ -155,8 +155,8 @@ declare interface Window {
       message?: string;
     }>;
 
-    /** Open native file picker for game files (CD/DVD). */
-    openAskGameFiles: (isGameCd: boolean, isGameDvd: boolean) => Promise<any>;
+    /** Open native file picker for game files (CD/DVD). isGamePsx also allows picking a .zip containing the .cue/.bin. */
+    openAskGameFiles: (isGameCd: boolean, isGameDvd: boolean, isGamePsx?: boolean) => Promise<any>;
 
     /** Try to determine PS1 game ID from a binary file via hex patterns. */
     tryDeterminePs1GameIdFromHex: (filepath: string) => Promise<any>;

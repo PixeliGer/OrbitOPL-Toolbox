@@ -333,11 +333,15 @@ export async function openAskElfFiles() {
 
 export async function openAskGameFiles(
   isGameCd: boolean,
-  isGameDvd: boolean
+  isGameDvd: boolean,
+  isGamePsx: boolean = false
 ) {
   const filters = [];
   if (isGameCd) {
-    filters.push({ name: "CUE Files", extensions: ["cue"] });
+    filters.push({
+      name: "CUE Files",
+      extensions: isGamePsx ? ["cue", "zip"] : ["cue"],
+    });
   }
   if (isGameDvd) {
     filters.push({ name: "ISO/ZSO Files", extensions: ["iso", "zso"] });

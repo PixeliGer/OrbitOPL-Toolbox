@@ -87,7 +87,8 @@ export class ImportComponent implements OnInit {
       ? await window.libraryAPI.openAskElfFiles()
       : await window.libraryAPI.openAskGameFiles(
           this.isGameCd || this.isGamePsx,
-          this.isGameDvd
+          this.isGameDvd,
+          this.isGamePsx
         );
     if (result?.canceled || !result?.filePaths?.length) {
       return;
@@ -147,7 +148,7 @@ export class ImportComponent implements OnInit {
         path,
         fileName,
         gameId: '',
-        gameName: fileName.replace(/\.(cue|iso|bin)$/i, ''),
+        gameName: fileName.replace(/\.(cue|iso|bin|zip)$/i, ''),
         detected: false,
         invalid: false,
         message: message ? `Homebrew (no registered game ID): ${message}` : 'Homebrew — a game ID will be auto-assigned.',

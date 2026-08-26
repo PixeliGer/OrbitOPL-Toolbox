@@ -12,8 +12,8 @@ export function registerDialogIpc(): void {
 
   ipcMain.handle(
     "open-ask-game-files",
-    async (_event, isGameCd: boolean, isGameDvd: boolean) => {
-      return openAskGameFiles(isGameCd, isGameDvd);
+    async (_event, isGameCd: boolean, isGameDvd: boolean, isGamePsx: boolean) => {
+      return openAskGameFiles(isGameCd, isGameDvd, isGamePsx);
     }
   );
 

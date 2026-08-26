@@ -238,8 +238,8 @@ function buildLibraryAPI() {
     removeAllPs2CdImportProgressListeners: () => {
       ipcRenderer.removeAllListeners("ps2-cd-import-progress");
     },
-    openAskGameFiles: (isGameCd: boolean, isGameDvd: boolean) =>
-      ipcRenderer.invoke("open-ask-game-files", isGameCd, isGameDvd),
+    openAskGameFiles: (isGameCd: boolean, isGameDvd: boolean, isGamePsx?: boolean) =>
+      ipcRenderer.invoke("open-ask-game-files", isGameCd, isGameDvd, !!isGamePsx),
     openAskElfFiles: () => ipcRenderer.invoke("open-ask-elf-files"),
     importApp: (oplRoot: string, elfPath: string, title: string) =>
       ipcRenderer.invoke("import-app", oplRoot, elfPath, title),

@@ -42,7 +42,7 @@
           >
             <i-lucide name="gamepad-2" size="22"></i-lucide>
             <span class="font-semibold">PS1 / POPS</span>
-            <span class="type-sub">.cue</span>
+            <span class="type-sub">.cue / .zip</span>
           </button>
           <button
             class="type-card"
@@ -213,8 +213,11 @@
 
         <p class="mb-3 text-sm text-base-content/55">
           Pick the
-          {{ isApp ? ".elf file(s)" : isGameCd || isGamePsx ? ".cue file(s)" : ".iso / .zso file(s)" }}
+          {{ isApp ? ".elf file(s)" : isGamePsx ? ".cue or .zip file(s)" : isGameCd ? ".cue file(s)" : ".iso / .zso file(s)" }}
           to import. You can select multiple at once.
+          @if (isGamePsx) {
+          <span class="block text-base-content/40">A .zip must contain the .cue alongside its .bin file(s).</span>
+          }
         </p>
 
         <button class="btn btn-primary" (click)="addFiles()" [disabled]="scanning">

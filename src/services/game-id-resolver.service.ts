@@ -14,6 +14,7 @@ import {
 import { findPs1GameName, findPs2GameName } from "../utils/games-list";
 import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
 import { streamZsoContents } from "./zso.service";
+import { extractDiscZip, cleanupExtractedZip } from "../utils/zip-extract";
 
 const log = createLogger("game-id");
 
@@ -329,102 +330,130 @@ export async function tryDeterminePs1GameIdFromVcd(
 
 export async function tryDeterminePs1GameIdFromHex(filepath: string) {
   let scanPath = filepath;
+  let zipTempDir: string | null = null;
 
-  if (path.extname(filepath).toLowerCase() === ".cue") {
-    try {
-      const cueSheet = await parseCueSheet(filepath);
-      const firstFile = cueSheet.files[0]?.filename;
-      if (!firstFile) {
+  try {
+    if (path.extname(filepath).toLowerCase() === ".zip") {
+      let extracted;
+      try {
+        extracted = await extractDiscZip(filepath);
+      } catch (err: any) {
+        log.error(`PS1 hex scan: failed to extract ZIP ${filepath}:`, err?.message || err);
         return {
           success: false,
-          message: "CUE sheet does not reference any BIN files.",
+          message: err?.message || "Failed to extract ZIP archive.",
         };
       }
-      scanPath = path.join(getCueDirectory(filepath), firstFile);
-      log.verbose(`PS1 hex scan: resolved CUE to first BIN ${firstFile}`);
+      zipTempDir = extracted.tempDir;
+      if (!extracted.cuePath && !extracted.binPath) {
+        return {
+          success: false,
+          message: "ZIP archive does not contain a .cue or .bin file.",
+        };
+      }
+      scanPath = extracted.cuePath || (extracted.binPath as string);
+    }
+
+    if (path.extname(scanPath).toLowerCase() === ".cue") {
+      try {
+        const cueSheet = await parseCueSheet(scanPath);
+        const firstFile = cueSheet.files[0]?.filename;
+        if (!firstFile) {
+          return {
+            success: false,
+            message: "CUE sheet does not reference any BIN files.",
+          };
+        }
+        scanPath = path.join(getCueDirectory(scanPath), firstFile);
+        log.verbose(`PS1 hex scan: resolved CUE to first BIN ${firstFile}`);
+      } catch (err: any) {
+        log.error(`PS1 hex scan: failed to parse CUE ${scanPath}:`, err?.message || err);
+        return {
+          success: false,
+          message: err?.message || "Failed to parse CUE sheet.",
+        };
+      }
+    }
+
+    let fileHandle: fs.FileHandle | undefined;
+
+    try {
+      fileHandle = await fs.open(scanPath, "r");
     } catch (err: any) {
-      log.error(`PS1 hex scan: failed to parse CUE ${filepath}:`, err?.message || err);
+      log.error(`PS1 hex scan: cannot open ${scanPath}:`, err?.code || err?.message || err);
       return {
         success: false,
-        message: err?.message || "Failed to parse CUE sheet.",
+        message: describeFileAccessError(err, scanPath),
       };
     }
-  }
 
-  let fileHandle: fs.FileHandle | undefined;
+    try {
+      log.verbose(`PS1 hex scan: reading ${path.basename(scanPath)} in ${FILE_SCAN_CHUNK_BYTES / 1024}KB chunks`);
+      const buffer = Buffer.alloc(FILE_SCAN_CHUNK_BYTES);
+      let position = 0;
+      let carry = "";
 
-  try {
-    fileHandle = await fs.open(scanPath, "r");
-  } catch (err: any) {
-    log.error(`PS1 hex scan: cannot open ${scanPath}:`, err?.code || err?.message || err);
-    return {
-      success: false,
-      message: describeFileAccessError(err, scanPath),
-    };
-  }
-
-  try {
-    log.verbose(`PS1 hex scan: reading ${path.basename(scanPath)} in ${FILE_SCAN_CHUNK_BYTES / 1024}KB chunks`);
-    const buffer = Buffer.alloc(FILE_SCAN_CHUNK_BYTES);
-    let position = 0;
-    let carry = "";
-
-    while (true) {
-      const { bytesRead } = await fileHandle.read(
-        buffer,
-        0,
-        FILE_SCAN_CHUNK_BYTES,
-        position
-      );
-
-      if (bytesRead === 0) {
-        break;
-      }
-
-      position += bytesRead;
-
-      const chunk = carry + buffer.subarray(0, bytesRead).toString("latin1");
-      PS1_GAME_ID_REGEX.lastIndex = 0;
-      const matches = chunk.match(PS1_GAME_ID_REGEX);
-
-      if (matches && matches.length > 0) {
-        const rawId = matches[0];
-        const gameId = rawId.replace("-", "_");
-        const lookupId = normaliseGameIdForLookup(gameId);
-        const gameName = await findPs1GameName(lookupId);
-
-        log.verbose(
-          `PS1 hex scan: matched ${gameId} within first ${formatBytes(position)}` +
-            (gameName ? ` (${gameName})` : " (no title in games list)")
+      while (true) {
+        const { bytesRead } = await fileHandle.read(
+          buffer,
+          0,
+          FILE_SCAN_CHUNK_BYTES,
+          position
         );
-        return {
-          success: true,
-          gameId,
-          formattedGameId: lookupId,
-          ...(gameName ? { gameName } : {}),
-        };
+
+        if (bytesRead === 0) {
+          break;
+        }
+
+        position += bytesRead;
+
+        const chunk = carry + buffer.subarray(0, bytesRead).toString("latin1");
+        PS1_GAME_ID_REGEX.lastIndex = 0;
+        const matches = chunk.match(PS1_GAME_ID_REGEX);
+
+        if (matches && matches.length > 0) {
+          const rawId = matches[0];
+          const gameId = rawId.replace("-", "_");
+          const lookupId = normaliseGameIdForLookup(gameId);
+          const gameName = await findPs1GameName(lookupId);
+
+          log.verbose(
+            `PS1 hex scan: matched ${gameId} within first ${formatBytes(position)}` +
+              (gameName ? ` (${gameName})` : " (no title in games list)")
+          );
+          return {
+            success: true,
+            gameId,
+            formattedGameId: lookupId,
+            ...(gameName ? { gameName } : {}),
+          };
+        }
+
+        carry =
+          chunk.length > FILE_SCAN_OVERLAP_BYTES
+            ? chunk.slice(-FILE_SCAN_OVERLAP_BYTES)
+            : chunk;
       }
 
-      carry =
-        chunk.length > FILE_SCAN_OVERLAP_BYTES
-          ? chunk.slice(-FILE_SCAN_OVERLAP_BYTES)
-          : chunk;
+      log.verbose(`PS1 hex scan: no game ID found after reading ${formatBytes(position)}`);
+      return {
+        success: false,
+        message: "Could not locate a PS1 game ID inside the provided file.",
+      };
+    } catch (err: any) {
+      log.error(`PS1 hex scan: read error on ${path.basename(scanPath)}:`, err?.message || err);
+      return {
+        success: false,
+        message: err?.message || "Failed while reading file contents.",
+      };
+    } finally {
+      if (fileHandle) {
+        await fileHandle.close();
+      }
     }
-
-    log.verbose(`PS1 hex scan: no game ID found after reading ${formatBytes(position)}`);
-    return {
-      success: false,
-      message: "Could not locate a PS1 game ID inside the provided file.",
-    };
-  } catch (err: any) {
-    log.error(`PS1 hex scan: read error on ${path.basename(scanPath)}:`, err?.message || err);
-    return {
-      success: false,
-      message: err?.message || "Failed while reading file contents.",
-    };
   } finally {
-    if (fileHandle) {
-      await fileHandle.close();
+    if (zipTempDir) {
+      await cleanupExtractedZip(zipTempDir);
     }
   }
 }

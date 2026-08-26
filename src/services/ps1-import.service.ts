@@ -3,6 +3,7 @@ import path from "path";
 import { mergeMultiBin } from "../utils/binmerge";
 import { convertToVcd } from "../utils/cue2pops";
 import { parseCueSheet, getCueDirectory } from "../utils/cue-parser";
+import { extractDiscZip } from "../utils/zip-extract";
 import { tryDeterminePs1GameIdFromHex } from "./game-id-resolver.service";
 import { downloadArtByGameId } from "./artwork.service";
 import { sanitizeGameFilename } from "../utils/sanitize";
@@ -87,6 +88,7 @@ export async function importPs1Game(
   launcherMode: "popstarter" | "popsloader" = "popstarter",
   onProgress?: (percent: number, stage: string) => void
 ): Promise<ImportPs1Result> {
+  let zipTempDir: string | null = null;
   try {
     log.info(
       `PS1 import started: ${cueFilePath} (ELF prefix "${elfPrefix}", launcher mode "${launcherMode}")`
@@ -100,8 +102,26 @@ export async function importPs1Game(
 
     if (onProgress) onProgress(0, "Parsing CUE sheet");
 
+    // Step 0: If a ZIP was picked, extract it and locate the CUE inside —
+    // everything below operates on the extracted CUE as if it had been
+    // picked directly.
+    let resolvedCueFilePath = cueFilePath;
+    if (path.extname(cueFilePath).toLowerCase() === ".zip") {
+      if (onProgress) onProgress(2, "Extracting ZIP archive");
+      log.verbose(`Extracting PS1 ZIP archive ${cueFilePath}`);
+      const extracted = await extractDiscZip(cueFilePath);
+      zipTempDir = extracted.tempDir;
+      if (!extracted.cuePath) {
+        return {
+          success: false,
+          message: "ZIP archive does not contain a .cue file alongside the .bin.",
+        };
+      }
+      resolvedCueFilePath = extracted.cuePath;
+    }
+
     // Step 1: Check if multi-BIN and merge if needed
-    const cueSheet = await parseCueSheet(cueFilePath);
+    const cueSheet = await parseCueSheet(resolvedCueFilePath);
     let binPath: string;
     let cuePath: string;
     let tempDir: string | null = null;
@@ -115,15 +135,15 @@ export async function importPs1Game(
       await fs.mkdir(tempDir, { recursive: true });
 
       const mergeResult = await mergeMultiBin(
-        cueFilePath,
+        resolvedCueFilePath,
         tempDir,
         onProgress
       );
       binPath = mergeResult.mergedBinPath;
       cuePath = mergeResult.mergedCuePath;
     } else {
-      binPath = path.join(getCueDirectory(cueFilePath), cueSheet.files[0].filename);
-      cuePath = cueFilePath;
+      binPath = path.join(getCueDirectory(resolvedCueFilePath), cueSheet.files[0].filename);
+      cuePath = resolvedCueFilePath;
     }
 
     // Step 2: Resolve game ID + name (use overrides if provided, else detect;
@@ -150,7 +170,7 @@ export async function importPs1Game(
       log.info(`No registered PS1 game ID found — auto-assigned homebrew ID ${gameId}`);
     }
     if (!gameName) {
-      gameName = path.basename(cueFilePath, path.extname(cueFilePath));
+      gameName = path.basename(resolvedCueFilePath, path.extname(resolvedCueFilePath));
     }
     log.verbose(`Resolved PS1 game ${gameId} (${gameName})`);
 
@@ -247,6 +267,14 @@ export async function importPs1Game(
       success: false,
       message: describeFileAccessError(err),
     };
+  } finally {
+    if (zipTempDir) {
+      try {
+        await fs.rm(zipTempDir, { recursive: true, force: true });
+      } catch {
+        // Non-critical cleanup failure
+      }
+    }
   }
 }
 

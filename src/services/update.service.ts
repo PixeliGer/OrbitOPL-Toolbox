@@ -25,6 +25,15 @@ function parseVersion(raw: string): { parts: number[]; pre: string } {
   return { parts, pre: preParts.join("-") };
 }
 
+// Matches this project's prerelease channels (see angular's build-channel.ts):
+// e.g. "alpha.0", "beta.1", "rc.2", "release-candidate.0", "indev.3".
+const IGNORED_PRERELEASE_PATTERN = /^(alpha|beta|rc|release-?candidate|indev)/i;
+
+/** True if `version`'s prerelease tag is a channel we shouldn't notify about (alpha/beta/rc/indev). */
+function isIgnoredPrerelease(version: string): boolean {
+  return IGNORED_PRERELEASE_PATTERN.test(parseVersion(version).pre);
+}
+
 /**
  * Returns true if `candidate` is a newer version than `current`.
  * Compares the numeric core first; if equal, a build *without* a prerelease
@@ -66,9 +75,9 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
       draft: boolean;
     }>;
 
-    // GitHub returns releases newest-first; take the first published one
-    // (prereleases/betas included, since this project ships them).
-    const latest = releases.find((r) => !r.draft);
+    // GitHub returns releases newest-first; take the first published one,
+    // skipping alpha/beta/rc/indev prereleases so users aren't nagged about them.
+    const latest = releases.find((r) => !r.draft && !isIgnoredPrerelease(r.tag_name));
     if (!latest) {
       log.verbose("No published releases found");
       return { updateAvailable: false, currentVersion };
