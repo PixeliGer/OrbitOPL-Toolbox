@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
-import * as lz4 from "lz4js";
+import path from "path";
 import { createLogger, formatBytes } from "../logger";
+import { WorkerPool, runWithConcurrency } from "../utils/worker-pool";
 
 const log = createLogger("zso");
 
@@ -21,8 +22,17 @@ const HEADER_SIZE = 0x18; // 24 bytes
 const BLOCK_SIZE = 2048;
 const VERSION = 1;
 const NOT_COMPRESSED = 0x80000000;
-const HASH_SIZE = 1 << 16;
-const READ_BLOCKS_PER_CHUNK = 2048; // read ~4 MiB of source at a time
+
+// Each ZISO block compresses/decompresses independently of every other
+// block, so the work is split into chunks of this many blocks (~8 MiB) and
+// spread across a pool of worker threads — one chunk per worker task keeps
+// message-passing overhead low while still giving the scheduler plenty of
+// chunks to balance across cores on large images.
+const PARALLEL_CHUNK_BLOCKS = 4096;
+
+function zsoWorkerScriptPath(): string {
+  return path.join(__dirname, "..", "workers", "zso.worker.js");
+}
 
 export interface ZsoResult {
   success: boolean;
@@ -60,6 +70,7 @@ export async function compressIsoToZso(
 ): Promise<ZsoResult> {
   let input: fs.FileHandle | null = null;
   let output: fs.FileHandle | null = null;
+  let pool: WorkerPool | null = null;
 
   try {
     input = await fs.open(isoPath, "r");
@@ -76,13 +87,17 @@ export async function compressIsoToZso(
     const worstCaseEnd = HEADER_SIZE + indexSize + totalBytes + numBlocks; // raw + padding slack
     const align = chooseAlign(worstCaseEnd);
 
+    const totalChunks = Math.ceil(numBlocks / PARALLEL_CHUNK_BLOCKS);
+    const poolSize = Math.min(WorkerPool.defaultSize(), totalChunks);
+    pool = new WorkerPool(zsoWorkerScriptPath(), poolSize);
+
     log.info(
       `Compressing ISO → ZSO: ${isoPath} (${formatBytes(totalBytes)}, ` +
-        `${numBlocks} × ${BLOCK_SIZE}B blocks)`,
+        `${numBlocks} × ${BLOCK_SIZE}B blocks) using ${poolSize} worker thread(s)`,
     );
     log.verbose(
       `ZISO params: align=${align} (unit ${1 << align}B), index ${formatBytes(indexSize)}, ` +
-        `output ${zsoPath}`,
+        `output ${zsoPath}, ${totalChunks} chunk(s) of ${PARALLEL_CHUNK_BLOCKS} blocks`,
     );
 
     output = await fs.open(zsoPath, "w");
@@ -90,87 +105,113 @@ export async function compressIsoToZso(
     // Block index, filled as we stream; written out at the end.
     const index = new Uint32Array(numBlocks + 1);
 
-    const hashTable = new Uint32Array(HASH_SIZE);
-    const blockBuf = new Uint8Array(BLOCK_SIZE);
-    const compBuf = new Uint8Array(lz4.compressBound(BLOCK_SIZE));
-    const readBuf = Buffer.alloc(BLOCK_SIZE * READ_BLOCKS_PER_CHUNK);
-
     let writePos = alignUp(HEADER_SIZE + indexSize, align);
-    let readPos = 0;
     let blockIndex = 0;
     let lastProgress = -1;
     let lastVerboseMilestone = 0;
 
-    while (readPos < totalBytes) {
-      const { bytesRead } = await input.read(
-        readBuf,
-        0,
-        readBuf.length,
-        readPos,
-      );
-      if (bytesRead === 0) break;
+    // Chunks compress concurrently across the worker pool (out of order),
+    // but the ZISO format packs blocks back-to-back with running offsets, so
+    // results must be written out in chunk order. `pendingResults` holds
+    // completed-but-not-yet-writable chunks; `drainReady()` flushes whatever
+    // prefix is now contiguous whenever a new result arrives.
+    const pendingResults = new Map<
+      number,
+      { outBuffer: ArrayBuffer; sizes: ArrayBuffer; flags: ArrayBuffer; numBlocks: number }
+    >();
+    let nextToWrite = 0;
+    let draining = false;
 
-      let chunkOffset = 0;
-      while (chunkOffset < bytesRead) {
-        const remainingInChunk = bytesRead - chunkOffset;
-        const thisBlockBytes = Math.min(BLOCK_SIZE, remainingInChunk);
+    const drainReady = async () => {
+      if (draining) return;
+      draining = true;
+      try {
+        while (pendingResults.has(nextToWrite)) {
+          const result = pendingResults.get(nextToWrite)!;
+          pendingResults.delete(nextToWrite);
 
-        // Copy the block, zero-padding the final short block to BLOCK_SIZE.
-        blockBuf.fill(0);
-        readBuf.copy(blockBuf, 0, chunkOffset, chunkOffset + thisBlockBytes);
+          const outBuf = Buffer.from(result.outBuffer);
+          const sizes = new Uint32Array(result.sizes);
+          const flags = new Uint8Array(result.flags);
 
-        hashTable.fill(0);
-        const compSize = lz4.compressBlock(
-          blockBuf,
-          compBuf,
-          0,
-          BLOCK_SIZE,
-          hashTable,
-        );
+          // Lay out the whole chunk in one local buffer (any inter-block
+          // alignment padding included, left zeroed) and issue a single
+          // write for it instead of one write() syscall per block — with
+          // 2 KiB blocks that's the difference between a few dozen writes
+          // and hundreds of thousands for a full-size DVD image.
+          const chunkStartPos = writePos;
+          const blockPositions = new Array<number>(result.numBlocks);
+          const blockReadOffsets = new Array<number>(result.numBlocks);
+          let readOffset = 0;
+          let cursor = writePos;
+          for (let i = 0; i < result.numBlocks; i++) {
+            const alignedPos = alignUp(cursor, align);
+            blockPositions[i] = alignedPos;
+            blockReadOffsets[i] = readOffset;
+            cursor = alignedPos + sizes[i];
+            readOffset += sizes[i];
+          }
 
-        const alignedPos = alignUp(writePos, align);
-        let stored: Uint8Array;
-        let isCompressed: boolean;
+          const chunkBuf = Buffer.alloc(cursor - chunkStartPos);
+          for (let i = 0; i < result.numBlocks; i++) {
+            const storedLen = sizes[i];
+            outBuf.copy(
+              chunkBuf,
+              blockPositions[i] - chunkStartPos,
+              blockReadOffsets[i],
+              blockReadOffsets[i] + storedLen,
+            );
 
-        if (compSize > 0 && compSize < BLOCK_SIZE) {
-          stored = compBuf.subarray(0, compSize);
-          isCompressed = true;
-        } else {
-          stored = blockBuf;
-          isCompressed = false;
+            let entry = Math.floor(blockPositions[i] / Math.pow(2, align));
+            if (flags[i] !== 1) entry += NOT_COMPRESSED;
+            index[blockIndex] = entry >>> 0;
+            blockIndex++;
+          }
+
+          await output!.write(chunkBuf, 0, chunkBuf.length, chunkStartPos);
+          writePos = cursor;
+
+          nextToWrite++;
+
+          const percent = Math.floor((blockIndex / numBlocks) * 100);
+          if (onProgress && percent !== lastProgress) {
+            lastProgress = percent;
+            onProgress(percent, "Compressing to ZSO");
+          }
+          if (percent >= lastVerboseMilestone + 25) {
+            lastVerboseMilestone = percent - (percent % 25);
+            log.verbose(
+              `ZSO compression ${lastVerboseMilestone}% — ${blockIndex}/${numBlocks} blocks, ` +
+                `${formatBytes(writePos)} written so far`,
+            );
+          }
         }
-
-        await output.write(
-          Buffer.from(stored.buffer, stored.byteOffset, stored.length),
-          0,
-          stored.length,
-          alignedPos,
-        );
-
-        let entry = Math.floor(alignedPos / Math.pow(2, align));
-        if (!isCompressed) entry += NOT_COMPRESSED;
-        index[blockIndex] = entry >>> 0;
-
-        writePos = alignedPos + stored.length;
-        blockIndex++;
-        chunkOffset += thisBlockBytes;
+      } finally {
+        draining = false;
       }
+    };
 
-      readPos += bytesRead;
+    await runWithConcurrency(totalChunks, poolSize * 2, async (chunkIdx) => {
+      const startBlock = chunkIdx * PARALLEL_CHUNK_BLOCKS;
+      const endBlock = Math.min(startBlock + PARALLEL_CHUNK_BLOCKS, numBlocks);
+      const nBlocks = endBlock - startBlock;
+      const byteLen = nBlocks * BLOCK_SIZE;
+      const fileByteStart = startBlock * BLOCK_SIZE;
+      const availableBytes = Math.min(byteLen, totalBytes - fileByteStart);
 
-      const percent = Math.floor((readPos / totalBytes) * 100);
-      if (onProgress && percent !== lastProgress) {
-        lastProgress = percent;
-        onProgress(percent, "Compressing to ZSO");
-      }
-      if (percent >= lastVerboseMilestone + 25) {
-        lastVerboseMilestone = percent - (percent % 25);
-        log.verbose(
-          `ZSO compression ${lastVerboseMilestone}% — ${blockIndex}/${numBlocks} blocks, ` +
-            `${formatBytes(writePos)} written so far`,
-        );
-      }
-    }
+      // Zero-initialised, so any short final block is already zero-padded.
+      const readArrayBuffer = new ArrayBuffer(byteLen);
+      const readView = Buffer.from(readArrayBuffer);
+      await input!.read(readView, 0, availableBytes, fileByteStart);
+
+      const result = await pool!.run(
+        { type: "compress", buffer: readArrayBuffer, blockSize: BLOCK_SIZE, numBlocks: nBlocks },
+        [readArrayBuffer],
+      );
+
+      pendingResults.set(chunkIdx, result);
+      await drainReady();
+    });
 
     // End marker: offset just past the last block.
     const endPos = alignUp(writePos, align);
@@ -230,6 +271,7 @@ export async function compressIsoToZso(
   } finally {
     await input?.close().catch(() => {});
     await output?.close().catch(() => {});
+    await pool?.destroy().catch(() => {});
   }
 }
 
@@ -393,6 +435,7 @@ export async function decompressZsoToIso(
 ): Promise<ZsoResult> {
   let input: fs.FileHandle | null = null;
   let output: fs.FileHandle | null = null;
+  let pool: WorkerPool | null = null;
 
   try {
     input = await fs.open(zsoPath, "r");
@@ -419,47 +462,86 @@ export async function decompressZsoToIso(
     const indexBuf = Buffer.alloc(indexSize);
     await input.read(indexBuf, 0, indexSize, headerSize);
 
+    const totalChunks = Math.ceil(numBlocks / PARALLEL_CHUNK_BLOCKS);
+    const poolSize = Math.min(WorkerPool.defaultSize(), totalChunks);
+    pool = new WorkerPool(zsoWorkerScriptPath(), poolSize);
+
     log.info(
       `Decompressing ZSO → ISO: ${zsoPath} (${formatBytes(totalBytes)}, ` +
-        `${numBlocks} blocks of ${blockSize}B, align=${align})`,
+        `${numBlocks} blocks of ${blockSize}B, align=${align}) using ${poolSize} worker thread(s)`,
     );
 
     output = await fs.open(isoPath, "w");
 
     const unit = Math.pow(2, align);
-    const srcBuf = Buffer.alloc(blockSize + unit + 16);
-    const dstBuf = Buffer.alloc(blockSize);
-    let produced = 0;
+    let completedBytes = 0;
+    let completedBlocks = 0;
     let lastProgress = -1;
     let lastVerboseMilestone = 0;
 
-    for (let i = 0; i < numBlocks; i++) {
-      const rawEntry = indexBuf.readUInt32LE(i * 4) >>> 0;
-      const rawNext = indexBuf.readUInt32LE((i + 1) * 4) >>> 0;
-      const isCompressed = (rawEntry & NOT_COMPRESSED) === 0;
-      const offset = (rawEntry & 0x7fffffff) * unit;
-      const nextOffset = (rawNext & 0x7fffffff) * unit;
-      const readLen = nextOffset - offset;
-      const outLen = Math.min(blockSize, totalBytes - produced);
+    // Each block's output position (blockIndex * blockSize) is fixed and
+    // independent of every other block, so — unlike compression's packed,
+    // variable-length layout — decompressed chunks can be written to the
+    // output file as soon as they're ready, in any order.
+    await runWithConcurrency(totalChunks, poolSize * 2, async (chunkIdx) => {
+      const startBlock = chunkIdx * PARALLEL_CHUNK_BLOCKS;
+      const endBlock = Math.min(startBlock + PARALLEL_CHUNK_BLOCKS, numBlocks);
+      const nBlocks = endBlock - startBlock;
 
-      if (readLen > 0) {
-        const cappedLen = Math.min(readLen, srcBuf.length);
-        await input.read(srcBuf, 0, cappedLen, offset);
+      const blockOffsets = new Uint32Array(nBlocks);
+      const blockFlags = new Uint8Array(nBlocks);
+      const outLens = new Uint32Array(nBlocks);
 
-        let chunk: Buffer;
-        if (isCompressed) {
-          decompressLz4BlockBounded(srcBuf, dstBuf, outLen);
-          chunk = dstBuf.subarray(0, outLen);
-        } else {
-          chunk = srcBuf.subarray(0, outLen);
-        }
+      const chunkFileStart =
+        ((indexBuf.readUInt32LE(startBlock * 4) >>> 0) & 0x7fffffff) * unit;
+      const chunkFileEnd =
+        ((indexBuf.readUInt32LE(endBlock * 4) >>> 0) & 0x7fffffff) * unit;
+      const chunkReadLen = Math.max(0, chunkFileEnd - chunkFileStart);
 
-        await output.write(chunk, 0, outLen, produced);
+      let produced = startBlock * blockSize;
+      for (let i = 0; i < nBlocks; i++) {
+        const gi = startBlock + i;
+        const rawEntry = indexBuf.readUInt32LE(gi * 4) >>> 0;
+        const isCompressed = (rawEntry & NOT_COMPRESSED) === 0;
+        const offset = (rawEntry & 0x7fffffff) * unit;
+
+        blockOffsets[i] = offset - chunkFileStart;
+        blockFlags[i] = isCompressed ? 1 : 0;
+        outLens[i] = Math.max(0, Math.min(blockSize, totalBytes - produced));
+        produced += blockSize;
       }
 
-      produced += outLen;
+      const srcArrayBuffer = new ArrayBuffer(chunkReadLen);
+      if (chunkReadLen > 0) {
+        const srcView = Buffer.from(srcArrayBuffer);
+        await input!.read(srcView, 0, chunkReadLen, chunkFileStart);
+      }
 
-      const percent = Math.floor((produced / totalBytes) * 100);
+      const result = await pool!.run(
+        {
+          type: "decompress",
+          buffer: srcArrayBuffer,
+          blockSize,
+          numBlocks: nBlocks,
+          blockOffsets: blockOffsets.buffer,
+          blockFlags: blockFlags.buffer,
+          outLens: outLens.buffer,
+        },
+        [
+          srcArrayBuffer,
+          blockOffsets.buffer,
+          blockFlags.buffer,
+          outLens.buffer,
+        ],
+      );
+
+      const outBuf = Buffer.from(result.outBuffer);
+      await output!.write(outBuf, 0, result.outLen, startBlock * blockSize);
+
+      completedBytes += result.outLen;
+      completedBlocks += nBlocks;
+
+      const percent = Math.floor((completedBytes / totalBytes) * 100);
       if (onProgress && percent !== lastProgress) {
         lastProgress = percent;
         onProgress(percent, "Decompressing ZSO");
@@ -467,11 +549,11 @@ export async function decompressZsoToIso(
       if (percent >= lastVerboseMilestone + 25) {
         lastVerboseMilestone = percent - (percent % 25);
         log.verbose(
-          `ZSO decompression ${lastVerboseMilestone}% — ${i + 1}/${numBlocks} blocks, ` +
-            `${formatBytes(produced)} written so far`,
+          `ZSO decompression ${lastVerboseMilestone}% — ${completedBlocks}/${numBlocks} blocks, ` +
+            `${formatBytes(completedBytes)} written so far`,
         );
       }
-    }
+    });
 
     await output.close();
     output = null;
@@ -503,5 +585,6 @@ export async function decompressZsoToIso(
   } finally {
     await input?.close().catch(() => {});
     await output?.close().catch(() => {});
+    await pool?.destroy().catch(() => {});
   }
 }

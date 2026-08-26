@@ -117,7 +117,7 @@ export class GamecardComponent {
     const g = this.game();
     if (!g) return false;
     const system = g.system ?? 'PS2';
-    const isZso = g.format === 'ZSO' || g.extension?.toLowerCase() === 'zso';
+    const isZso = g.format === 'ZSO' || g.extension?.toLowerCase() === '.zso';
     return system === 'PS2' && isZso;
   });
 
@@ -125,7 +125,13 @@ export class GamecardComponent {
   readonly canConvertVcdToBin = computed(() => {
     const g = this.game();
     if (!g) return false;
-    const isVcd = g.format === 'VCD' || g.extension?.toLowerCase() === 'vcd';
+    // Games in POPS/ get format 'POPS' rather than 'VCD' (see
+    // LibraryService.parseSingleFile); games in a top-level VCD/ folder
+    // (RiptOPL/POPSLoader layout) get 'VCD'. Both are .VCD disc images.
+    const isVcd =
+      g.format === 'VCD' ||
+      g.format === 'POPS' ||
+      g.extension?.toLowerCase() === '.vcd';
     return g.system === 'PS1' && isVcd;
   });
 
