@@ -6,31 +6,131 @@
 }
 
 /* ───────────────────────────────────────────────────────────────
-   OrbitPS2 Manager — "PS2 BIOS" theme
-   Deep-navy dashboard backdrop with electric-blue / cyan accents,
-   inspired by the PlayStation 2 system browser and Open PS2 Loader.
+   OrbitPS2 Manager — "OrbitPS2" theme
+   Graphite console-shell surfaces with a single cool blue-LED accent,
+   inspired by the PS2 hardware casing more than its BIOS glow.
+   Ships as a dark/light pair, picked from Settings → Appearance.
    ─────────────────────────────────────────────────────────────── */
 @plugin "daisyui/theme" {
-  name: "ps2";
+  name: "orbitps2";
   default: true;
-  prefersdark: false;
+  prefersdark: true;
   color-scheme: dark;
 
   /* Surfaces: base-100 = darkest panel, lighter as it stacks up */
+  --color-base-100: oklch(20% 0.006 255);
+  --color-base-200: oklch(24% 0.007 255);
+  --color-base-300: oklch(30% 0.008 255);
+  --color-base-content: oklch(93% 0.005 255);
+
+  /* Blue-LED primary */
+  --color-primary: oklch(66% 0.15 235);
+  --color-primary-content: oklch(98% 0.01 235);
+
+  /* Desaturated graphite-blue secondary */
+  --color-secondary: oklch(50% 0.01 250);
+  --color-secondary-content: oklch(96% 0.005 250);
+
+  /* Pale cyan glow, used sparingly for highlights */
+  --color-accent: oklch(85% 0.06 210);
+  --color-accent-content: oklch(20% 0.02 210);
+
+  --color-neutral: oklch(27% 0.008 255);
+  --color-neutral-content: oklch(92% 0.005 255);
+
+  --color-info: oklch(72% 0.1 225);
+  --color-info-content: oklch(18% 0.03 225);
+  --color-success: oklch(70% 0.14 155);
+  --color-success-content: oklch(18% 0.04 155);
+  --color-warning: oklch(80% 0.13 82);
+  --color-warning-content: oklch(22% 0.05 82);
+  --color-error: oklch(62% 0.19 22);
+  --color-error-content: oklch(98% 0.01 22);
+
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.85rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "orbitps2-light";
+  default: false;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Surfaces: base-100 = brightest panel, deeper as it stacks up */
+  --color-base-100: oklch(98% 0.004 255);
+  --color-base-200: oklch(94% 0.006 255);
+  --color-base-300: oklch(88% 0.008 255);
+  --color-base-content: oklch(24% 0.015 255);
+
+  /* Blue-LED primary, deepened for contrast on light surfaces */
+  --color-primary: oklch(52% 0.17 235);
+  --color-primary-content: oklch(98% 0.01 235);
+
+  /* Desaturated graphite-blue secondary */
+  --color-secondary: oklch(46% 0.02 250);
+  --color-secondary-content: oklch(97% 0.005 250);
+
+  /* Deeper cyan accent — stays legible against white */
+  --color-accent: oklch(46% 0.1 205);
+  --color-accent-content: oklch(98% 0.01 205);
+
+  --color-neutral: oklch(32% 0.012 255);
+  --color-neutral-content: oklch(96% 0.004 255);
+
+  --color-info: oklch(48% 0.11 225);
+  --color-info-content: oklch(98% 0.01 225);
+  --color-success: oklch(45% 0.13 155);
+  --color-success-content: oklch(98% 0.01 155);
+  --color-warning: oklch(58% 0.15 82);
+  --color-warning-content: oklch(20% 0.04 82);
+  --color-error: oklch(50% 0.2 22);
+  --color-error-content: oklch(98% 0.01 22);
+
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.85rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 0;
+  --noise: 0;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   Legacy — the original "PS2 BIOS" theme: deep-navy dashboard with
+   electric-blue / indigo / cyan glow. Kept as a selectable option
+   for anyone who preferred the launch look.
+   ─────────────────────────────────────────────────────────────── */
+@plugin "daisyui/theme" {
+  name: "legacy";
+  default: false;
+  prefersdark: false;
+  color-scheme: dark;
+
   --color-base-100: oklch(22% 0.04 258);
   --color-base-200: oklch(27% 0.045 258);
   --color-base-300: oklch(34% 0.05 258);
   --color-base-content: oklch(93% 0.025 250);
 
-  /* Electric PlayStation blue */
   --color-primary: oklch(64% 0.19 252);
   --color-primary-content: oklch(98% 0.01 252);
 
-  /* Indigo / violet secondary */
   --color-secondary: oklch(60% 0.17 287);
   --color-secondary-content: oklch(98% 0.01 287);
 
-  /* Cyan glow accent */
   --color-accent: oklch(82% 0.13 212);
   --color-accent-content: oklch(22% 0.05 240);
 

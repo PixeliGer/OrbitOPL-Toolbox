@@ -1,9 +1,29 @@
 <!doctype html>
-<html lang="en" data-theme="ps2">
+<html lang="en" data-theme="orbitps2">
   <head>
     <base href="./" />
     <meta charset="utf-8" />
     <title>OrbitPS2 Manager</title>
+    <script>
+      // Apply the persisted theme before first paint, so switching to
+      // "light" or "system" doesn't flash the default dark theme on launch.
+      // The Angular ThemeService keeps this key (and Electron's own
+      // settings.json, the source of truth) in sync on every change.
+      (function () {
+        try {
+          var pref = localStorage.getItem("orbitps2-theme") || "orbitps2";
+          var resolved = pref;
+          if (pref === "system") {
+            resolved = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "orbitps2"
+              : "orbitps2-light";
+          }
+          document.documentElement.setAttribute("data-theme", resolved);
+        } catch (e) {
+          // localStorage/matchMedia unavailable — keep the default dark theme.
+        }
+      })();
+    </script>
     <style>
       /* Boot splash — painted before Angular bootstraps, removed once it renders. */
       #app-splash {
@@ -31,7 +51,7 @@
       .splash-logo {
         width: 92px;
         height: 92px;
-        filter: drop-shadow(0 0 18px rgba(80, 180, 255, 0.45));
+        filter: drop-shadow(0 0 18px color-mix(in oklch, var(--color-primary) 45%, transparent));
         animation: splash-float 3.2s ease-in-out infinite;
       }
       @keyframes splash-float {
@@ -43,14 +63,14 @@
         font-size: 1.3rem;
         font-weight: 600;
         letter-spacing: 0.04em;
-        color: #eaf3fb;
+        color: var(--color-base-content);
       }
       .splash-spinner {
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        border: 3px solid rgba(120, 180, 240, 0.18);
-        border-top-color: #58b4ff;
+        border: 3px solid color-mix(in oklch, var(--color-base-content) 18%, transparent);
+        border-top-color: var(--color-primary);
         animation: splash-spin 0.85s linear infinite;
       }
       @keyframes splash-spin {
@@ -60,7 +80,7 @@
         min-height: 1.2em;
         font-family: Inter, Roboto, Arial, sans-serif;
         font-size: 0.88rem;
-        color: #9db6cf;
+        color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
         transition: opacity 0.3s ease;
       }
     </style>

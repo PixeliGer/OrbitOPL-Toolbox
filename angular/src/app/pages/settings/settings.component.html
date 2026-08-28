@@ -6,6 +6,35 @@
 
   <div class="flex-1 overflow-y-auto px-6 py-8">
     <div class="flex flex-col gap-4 max-w-3xl mx-auto">
+      <!-- ── Appearance ──────────────────────────────────────────── -->
+      <div class="glass rounded-box">
+        <div class="card-body">
+          <h2 class="card-title text-base">
+            <i-lucide name="palette" size="20" class="text-accent"></i-lucide>
+            Appearance
+          </h2>
+
+          <div class="flex items-start justify-between gap-4 mt-1">
+            <div>
+              <p class="font-medium text-sm">Theme</p>
+              <p class="text-sm text-base-content/60">
+                OrbitPS2, in dark or light, or the original launch look.
+              </p>
+            </div>
+            <select
+              class="select select-sm w-44 bg-base-100/60 shrink-0"
+              [value]="(settings$ | async)?.theme"
+              (change)="onThemeChange($any($event.target).value)"
+            >
+              <option value="orbitps2">OrbitPS2 (Dark)</option>
+              <option value="orbitps2-light">OrbitPS2 (Light)</option>
+              <option value="system">OrbitPS2 (System)</option>
+              <option value="legacy">Legacy</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Library ─────────────────────────────────────────────── -->
       <div class="glass rounded-box">
         <div class="card-body">

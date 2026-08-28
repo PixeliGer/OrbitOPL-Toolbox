@@ -60,8 +60,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: linear-gradient(160deg, oklch(28% 0.05 258), oklch(18% 0.04 262));
-  color: oklch(70% 0.06 240 / 0.45);
+  background: linear-gradient(160deg, var(--color-base-300), var(--color-base-100));
+  color: color-mix(in oklch, var(--color-base-content) 45%, transparent);
 }
 
 /* Floating system tag */
@@ -76,10 +76,10 @@
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: oklch(98% 0.01 250);
-  background: oklch(64% 0.19 252 / 0.85);
+  color: var(--color-primary-content);
+  background: color-mix(in oklch, var(--color-primary) 85%, transparent);
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px -2px oklch(64% 0.19 252 / 0.8);
+  box-shadow: 0 2px 8px -2px color-mix(in oklch, var(--color-primary) 80%, transparent);
 }
 
 .poster-system.is-ps1 {
@@ -200,8 +200,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 0.4rem;
-  background: oklch(30% 0.05 258 / 0.6);
-  color: oklch(70% 0.06 240 / 0.45);
+  background: color-mix(in oklch, var(--color-base-300) 60%, transparent);
+  color: color-mix(in oklch, var(--color-base-content) 45%, transparent);
 }
 
 .row-title,
@@ -214,12 +214,27 @@
 
 .row-title {
   font-weight: 600;
-  color: oklch(95% 0.02 250);
+  color: var(--color-base-content);
 }
 
 .row-meta {
   font-size: 0.75rem;
-  color: oklch(85% 0.02 250 / 0.6);
+  color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+}
+
+/* Chips in the list row sit directly on the themed row background (unlike
+   the grid tile's chips, which sit on a permanently-dark artwork scrim), so
+   they need their own theme-adaptive treatment here. */
+.game-row .chip {
+  background: color-mix(in oklch, var(--color-base-content) 12%, transparent);
+  color: var(--color-base-content);
+  border-color: color-mix(in oklch, var(--color-base-content) 18%, transparent);
+}
+
+.game-row .chip-region {
+  background: color-mix(in oklch, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+  border-color: color-mix(in oklch, var(--color-accent) 32%, transparent);
 }
 
 .row-actions {

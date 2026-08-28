@@ -13,6 +13,7 @@ import { LogsService } from './logs.service';
 export class SettingsService {
   private settingsSubject = new BehaviorSubject<AppSettings>({
     autoReconnect: true,
+    theme: 'orbitps2',
   });
   public get settings$(): Observable<AppSettings> {
     return this.settingsSubject.asObservable();

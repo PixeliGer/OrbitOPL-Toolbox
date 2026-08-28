@@ -9,6 +9,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import { JobsPanelComponent } from './shared/components/jobs-panel/jobs-panel.component';
 import { TitleBarComponent } from './shared/components/title-bar/title-bar.component';
 import { UpdateService } from './shared/services/update.service';
+import { ThemeService } from './shared/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -33,10 +34,13 @@ export class AppComponent {
     private readonly _logger: LogsService,
     public readonly _libraryService: LibraryService,
     public readonly _updateService: UpdateService,
+    private readonly _theme: ThemeService,
   ) {}
 
   ngOnInit() {
     const os = window.navigator.platform;
+
+    this._theme.init();
 
     this._logger.log(
       'AppComponent',

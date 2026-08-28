@@ -16,12 +16,15 @@ export interface AppSettings {
   autoReconnect: boolean;
   /** Last-picked PS1 launcher style on the Import screen. */
   ps1LauncherMode?: "popstarter" | "popsloader";
+  /** UI color theme. "system" follows the OS light/dark preference (OrbitPS2 only). */
+  theme: "orbitps2" | "orbitps2-light" | "legacy" | "system";
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   lastDirectory: undefined,
   autoReconnect: true,
   ps1LauncherMode: "popstarter",
+  theme: "orbitps2",
 };
 
 function settingsFilePath(): string {

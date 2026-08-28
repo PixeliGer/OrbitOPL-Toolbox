@@ -4,7 +4,7 @@
 }
 
 .console {
-  background: oklch(14% 0.035 262 / 0.85);
+  background: color-mix(in oklch, var(--color-base-100) 85%, transparent);
   line-height: 1.6;
 }
 
@@ -19,11 +19,11 @@
 }
 
 .log-line:hover {
-  background: oklch(60% 0.1 250 / 0.06);
+  background: color-mix(in oklch, var(--color-primary) 8%, transparent);
 }
 
 .log-time {
-  color: oklch(70% 0.04 250 / 0.5);
+  color: color-mix(in oklch, var(--color-base-content) 50%, transparent);
 }
 
 .log-tag {
@@ -33,31 +33,31 @@
 }
 
 .log-loc {
-  color: oklch(82% 0.13 212 / 0.75);
+  color: color-mix(in oklch, var(--color-accent) 75%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .log-msg {
-  color: oklch(90% 0.02 250 / 0.85);
+  color: color-mix(in oklch, var(--color-base-content) 85%, transparent);
 }
 
 /* Severity colours */
 .log-INF .log-tag {
-  color: oklch(74% 0.13 230);
+  color: var(--color-info);
 }
 
 .log-VRB {
   opacity: 0.6;
 }
 .log-VRB .log-tag {
-  color: oklch(70% 0.04 250 / 0.7);
+  color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
 }
 
 .log-ERR .log-tag {
-  color: oklch(64% 0.22 22);
+  color: var(--color-error);
 }
 .log-ERR .log-msg {
-  color: oklch(72% 0.18 25);
+  color: var(--color-error);
 }

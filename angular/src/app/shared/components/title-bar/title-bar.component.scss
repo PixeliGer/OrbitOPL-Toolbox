@@ -4,7 +4,7 @@
 }
 
 .title-bar {
-  border-bottom: 1px solid oklch(60% 0.08 250 / 0.16);
+  border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 14%, transparent);
 }
 
 .drag-region {
@@ -22,23 +22,23 @@
   align-items: center;
   justify-content: center;
   width: 2.75rem;
-  color: oklch(80% 0.03 250 / 0.65);
+  color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
   background: transparent;
   border: none;
   transition: background 0.15s ease, color 0.15s ease;
   cursor: pointer;
 
   &:hover {
-    background: oklch(60% 0.1 250 / 0.15);
-    color: oklch(95% 0.02 250);
+    background: color-mix(in oklch, var(--color-primary) 12%, transparent);
+    color: var(--color-base-content);
   }
 
   &:active {
-    background: oklch(60% 0.1 250 / 0.25);
+    background: color-mix(in oklch, var(--color-primary) 20%, transparent);
   }
 }
 
 .win-btn-close:hover {
-  background: oklch(58% 0.21 25);
-  color: oklch(98% 0.01 250);
+  background: var(--color-error);
+  color: var(--color-error-content);
 }

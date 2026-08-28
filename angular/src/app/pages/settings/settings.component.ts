@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { SettingsService } from '../../shared/services/settings.service';
 import { LogsService } from '../../shared/services/logs.service';
 import { UpdateService } from '../../shared/services/update.service';
+import { ThemeService, ThemePreference } from '../../shared/services/theme.service';
 
 @Component({
   selector: 'app-settings',
@@ -19,9 +20,14 @@ export class SettingsComponent implements OnInit {
   constructor(
     private readonly _settings: SettingsService,
     private readonly _logger: LogsService,
-    public readonly _update: UpdateService
+    public readonly _update: UpdateService,
+    private readonly _theme: ThemeService
   ) {
     this.settings$ = this._settings.settings$;
+  }
+
+  onThemeChange(theme: ThemePreference): void {
+    this._theme.setTheme(theme);
   }
 
   checkForUpdates(): void {
