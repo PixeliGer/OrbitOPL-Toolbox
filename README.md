@@ -32,7 +32,9 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 
 - **PS2 DVD** — import `ISO` / `ZSO` images
 - **PS2 CD** — convert `CUE`/`BIN` (including multi-track) to a single `ISO`
-- **PS1** — convert `CUE`/`BIN` to `VCD` and auto-generate a **POPStarter** launcher
+- **PS1** — convert `CUE`/`BIN`/`ZIP` to `VCD`, with a choice of launcher style:
+  - **POPStarter** (default) — auto-generates a POPStarter launcher under `APPS/`
+  - **RiptOPL / POPSLoader** — drops the VCD straight into `POPS/`/`VCD/` with no separate launcher
 - **APPS** — import homebrew `ELF` executables with a custom title
 - **Automatic game-ID detection** by scanning the disc image (no need to look it up manually)
 - **Queued batch imports** with live progress for long operations
@@ -45,10 +47,12 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 - Fetch art for a **single game** or for your **entire library** in one click
 - Sourced from the [PSX / PS2 OPL Art Database](https://github.com/Luden02/psx-ps2-opl-art-database)
 
-### 🗜️ Compression
+### 🗜️ Compression & conversion
 
 - Compress PS2 `ISO` → `ZSO` (LZ4) to save disk space — single game or **bulk** the whole library
-- Optionally delete the original `ISO` after compression
+- Decompress a `ZSO` back to `ISO` for a single game
+- Convert a PS1 `VCD` back to `BIN`/`CUE` for a single game
+- Optionally delete the original file after compression/decompression
 
 ### ⚙️ Per-game configuration
 
@@ -65,10 +69,12 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 - **Invalid-file detection** for malformed or wrongly-named files
 - **Bulk auto-correction** — discover game IDs and rename in one pass, with optional artwork download
 - **Rename to convention** — switch between the legacy (`GAMEID.Title.iso`) and new OPL naming styles
+- **PS1 launcher style conversion** — switch existing PS1 games between **POPStarter** and **RiptOPL/POPSLoader** layouts, per game or **library-wide**
 - **Safe delete** — removes the game image, its artwork, and any paired PS1 launcher
 
 ### 🛠️ Quality of life
 
+- **Theme picker** — OrbitPS2 Dark, Light, follow-system, or the original Legacy look
 - **Auto-reconnect** to your last library on launch
 - Real-time **logs** viewer with verbose mode
 - Built-in **update check**
@@ -122,7 +128,7 @@ The **Library** page is your home base.
 - **System tabs** (PlayStation 2 / PlayStation 1 / Apps) filter the view; each shows a live count.
 - Use the **search** box, the **sort** dropdown (Name or Game ID, A–Z / Z–A), and the **grid / list** toggle to find things fast.
 - **Click a game** to open its **details view** — cover art, screenshots, region, format, size, and any available metadata.
-- Each game's **⋮ menu** exposes per-game actions: *Fetch artwork*, *Game settings*, *Convert to ZSO*, *Rename*, and *Delete*.
+- Each game's **⋮ menu** exposes per-game actions: *Fetch artwork*, *Game settings*, *Convert to ZSO / Convert to ISO* (PS2), *Convert to BIN/CUE* (PS1), *Convert launcher* (PS1, POPStarter ⟷ RiptOPL/POPSLoader), *Rename*, and *Delete*.
 - The **⋮ menu in the top-right** runs library-wide actions (see below).
 
 ## 3. Import games
@@ -134,13 +140,16 @@ Go to the **Import** page and follow the three steps:
    |------|---------|--------------|
    | **PS2 DVD** | `.iso` / `.zso` | Copied into `DVD/` |
    | **PS2 CD** | `.bin` / `.cue` | Converted to a single `.iso` in `CD/` |
-   | **PS1 / POPS** | `.cue` | Converted to `.vcd`, plus a POPStarter launcher in `POPS/` |
+   | **PS1 / POPS** | `.cue` / `.zip` | Converted to `.vcd`, plus a launcher (see below) |
    | **App / Homebrew** | `.elf` | Copied into its own `APPS/` folder with a `title.cfg` launcher |
 
 2. **Set options:**
    - **Download artwork after import** — grabs cover/icon/screenshot automatically.
    - *(PS2 DVD)* **Use new OPL naming** — saves as `<Title>.iso` instead of `SLES_123.45.<Title>.iso`; OPL reads the game ID from the disc's `SYSTEM.CNF`.
-   - *(PS1)* **POPStarter prefix** — `XX.` for USB / MX4SIO, or `SB.` for an SMB network share.
+   - *(PS1)* **Launcher style**:
+     - **POPStarter** (default) — auto-generates a POPStarter launcher in `APPS/`; the game shows up under the **Apps** tab.
+     - **RiptOPL / POPSLoader** — puts the `.vcd` straight into `POPS/`/`VCD/` with no separate launcher; the game shows up under the **PS1** tab.
+   - *(PS1, POPStarter style only)* **POPStarter prefix** — `XX.` for USB / MX4SIO, or `SB.` for an SMB network share.
 
 3. **Select files & review** — add one or many files. The app auto-detects the game ID and name by reading each disc; if something can't be resolved it's flagged so you can fill it in manually. Click **Import** and watch the queued progress.
 
@@ -151,7 +160,7 @@ Go to the **Import** page and follow the three steps:
 
 Art comes from the [PSX / PS2 OPL Art Database](https://github.com/Luden02/psx-ps2-opl-art-database) and lands in the `ART/` folder as `GAMEID_COV / _ICO / _SCR`.
 
-## 5. Compress ISO → ZSO
+## 5. Compress / convert disc images
 
 ZSO is an LZ4-compressed disc image that saves space while staying OPL-compatible.
 
@@ -159,6 +168,13 @@ ZSO is an LZ4-compressed disc image that saves space while staying OPL-compatibl
 - **Whole library:** top-right **⋮ → Convert all PS2 ISOs to ZSO**.
 
 You can choose to delete the original `.iso` after a successful conversion.
+
+Need to go the other way? Per-game actions let you undo a conversion:
+
+- **⋮ → Convert to ISO** — decompresses a PS2 `.zso` back to a plain `.iso`.
+- **⋮ → Convert to BIN/CUE** — converts a PS1 `.vcd` back to `.bin`/`.cue`.
+
+These "convert back" actions are per-game only — there's no library-wide bulk version.
 
 ## 6. Configure a game
 
@@ -188,9 +204,18 @@ Switch a single game (**⋮ → Rename to convention**) or your whole library (t
 - **New** — `<Title>.iso` (OPL reads the ID from the disc)
 - **Old** — `<GAMEID>.<Title>.iso` (maximally compatible with older OPL builds)
 
-## 10. Settings, logs & updates
+## 10. Switch a PS1 game's launcher style
 
-- **Settings** — toggle *Reconnect on launch*, see your last mounted directory, and enable *Verbose logging*.
+If you change your mind after importing, you can convert existing PS1 games between launcher styles:
+
+- **One game:** **⋮ → Convert launcher** (on a PS1 entry or its POPStarter launcher).
+- **Whole library:** top-right **⋮** — **Convert All PS1 games to RiptOPL/POPSLoader** (from the **Apps** tab) or **Convert All PS1 games to OPL/Popstarter** (from the **PS1** tab).
+
+## 11. Settings, appearance, logs & updates
+
+- **Settings → Appearance** — pick a **Theme**: OrbitPS2 Dark, OrbitPS2 Light, OrbitPS2 (follows your system), or the original Legacy look.
+- **Settings → Library** — toggle *Reconnect on launch* and see your last mounted directory.
+- **Settings → Logging** — enable *Verbose logging*.
 - **Logs** — a real-time, in-app log viewer; turn on verbose mode when reporting an issue.
 - **Updates** — Settings → *Check for updates* compares your version against the latest GitHub release.
 
@@ -202,8 +227,8 @@ OrbitPS2 Manager reads and writes the standard OPL directory structure:
 OPL_ROOT/
 ├── CD/     — PS2 CD-format games (.iso / .zso)
 ├── DVD/    — PS2 DVD-format games (.iso / .zso)
-├── VCD/    — PS1 games (.vcd)
-├── POPS/   — PS1 POPStarter launchers (.elf) + POPS VMCs
+├── VCD/    — PS1 games (.vcd) — RiptOPL/POPSLoader-style, launcher-free
+├── POPS/   — PS1 discs (.vcd) and POPStarter launchers (.elf) + POPS VMCs
 ├── APPS/   — Homebrew apps (one folder each, with title.cfg)
 ├── ART/    — Artwork (GAMEID_COV.png, GAMEID_ICO.png, GAMEID_SCR.png)
 ├── CFG/    — Per-game OPL settings (GAMEID.cfg)
