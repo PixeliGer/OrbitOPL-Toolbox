@@ -92,7 +92,7 @@ export async function listAvailableArt(
           url,
           {
             headers: {
-              "User-Agent": "OrbitOPL-Toolbox",
+              "User-Agent": "OrbitPS2-Manager",
               Accept: "application/vnd.github+json",
             },
           },

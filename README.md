@@ -1,22 +1,22 @@
 ![Logo](angular/public/logo.svg)
 
-**OrbitOPL Toolbox** — a modern, cross-platform way to manage your PlayStation OPL game collection.
+**OrbitPS2 Manager** — a modern, cross-platform way to manage your PlayStation OPL game collection.
 
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-green)
-[![Releases](https://img.shields.io/github/v/release/Luden02/OrbitOPL-Toolbox)](https://github.com/Luden02/OrbitOPL-Toolbox/releases)
+[![Releases](https://img.shields.io/github/v/release/Luden02/OrbitPS2-Manager)](https://github.com/Luden02/OrbitPS2-Manager/releases)
 [![AUR](https://img.shields.io/aur/version/orbitopl-toolbox-bin)](https://aur.archlinux.org/packages/orbitopl-toolbox-bin)
 
 # 📖 About
 
-OrbitOPL Toolbox is an open-source, cross-platform desktop application for organizing your PlayStation 2 (and PlayStation 1) game library for use with [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader).
+OrbitPS2 Manager is an open-source, cross-platform desktop application for organizing your PlayStation 2 (and PlayStation 1) game library for use with [Open PS2 Loader (OPL)](https://github.com/ps2homebrew/Open-PS2-Loader).
 
 It was created to fill the gap left by OPLManager, which lacks macOS and Linux support.
 The goal isn't to replace OPLManager, but to offer an alternative — one that's modern, intuitive, and built with technologies familiar to JavaScript developers.
 
 > Built with Electron + Angular, styled with Tailwind CSS & daisyUI. Cross-platform: **Windows, macOS, and Linux**.
 
-<img width="1316" height="747" alt="OrbitOPL Toolbox — library view" src="https://github.com/user-attachments/assets/38534dc9-83c1-40ba-9a24-f2e64f5106d0" />
+<img width="1316" height="747" alt="OrbitPS2 Manager — library view" src="https://github.com/user-attachments/assets/38534dc9-83c1-40ba-9a24-f2e64f5106d0" />
 
 # ✨ Features
 
@@ -37,7 +37,7 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 - **Automatic game-ID detection** by scanning the disc image (no need to look it up manually)
 - **Queued batch imports** with live progress for long operations
 
-<img width="1496" height="821" alt="OrbitOPL Toolbox — import view" src="https://github.com/user-attachments/assets/e9aac4f1-821e-40fe-b37f-8a66074b1434" />
+<img width="1496" height="821" alt="OrbitPS2 Manager — import view" src="https://github.com/user-attachments/assets/e9aac4f1-821e-40fe-b37f-8a66074b1434" />
 
 ### 🖼️ Artwork
 
@@ -76,14 +76,14 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 
 # 💻 Installation
 
-Grab the latest build from the [Releases](https://github.com/Luden02/OrbitOPL-Toolbox/releases) page.
+Grab the latest build from the [Releases](https://github.com/Luden02/OrbitPS2-Manager/releases) page.
 
 On Arch Linux you can also use the [AUR binary](https://aur.archlinux.org/packages/orbitopl-toolbox-bin) or [AUR git](https://aur.archlinux.org/packages/orbitopl-toolbox-git) packages (thanks to u/m0tic).
 
 ### 🪟 Windows
 
 1. Download the **`.exe`** installer (or the portable **`.zip`** if you'd rather not install).
-2. Run it — the installer walks you through setup; the `.zip` just needs extracting, then run `OrbitOPLToolbox.exe`.
+2. Run it — the installer walks you through setup; the `.zip` just needs extracting, then run `OrbitPS2Manager.exe`.
 3. If **SmartScreen** appears, click **"More info" → "Run anyway"** (the app is unsigned but 100% safe).
 
 ### 🍏 macOS
@@ -91,17 +91,17 @@ On Arch Linux you can also use the [AUR binary](https://aur.archlinux.org/packag
 1. Download the `.dmg` for your architecture:
    - **arm64** (Apple Silicon — _recommended and tested_)
    - **x64** (Intel Macs)
-2. Open the `.dmg` and drag **OrbitOPLToolbox** to your **Applications** folder.
+2. Open the `.dmg` and drag **OrbitPS2Manager** to your **Applications** folder.
 3. Because the app is **unsigned** (but **100% safe**), macOS quarantines it. Remove the quarantine flag by running this in your **terminal**:
    ```bash
-   xattr -dr com.apple.quarantine /Applications/OrbitOPLToolbox.app
+   xattr -dr com.apple.quarantine /Applications/OrbitPS2Manager.app
    ```
 4. **Run** the app.
 
 ### 🐧 Linux
 
 1. Download the **`.AppImage`**, **`.deb`**, or **`.zip`** (whichever suits your distro).
-2. For the **AppImage**: make it executable and run it. For the **`.deb`**: install it with your package manager. For the **`.zip`**: extract and run the `OrbitOPLToolbox` binary.
+2. For the **AppImage**: make it executable and run it. For the **`.deb`**: install it with your package manager. For the **`.zip`**: extract and run the `OrbitPS2Manager` binary.
 
 # 🚀 How-To Guide
 
@@ -196,7 +196,7 @@ Switch a single game (**⋮ → Rename to convention**) or your whole library (t
 
 # 📁 OPL folder layout
 
-OrbitOPL Toolbox reads and writes the standard OPL directory structure:
+OrbitPS2 Manager reads and writes the standard OPL directory structure:
 
 ```
 OPL_ROOT/
@@ -218,7 +218,7 @@ This project is licensed under the GNU General Public License v3.0 — see the [
 
 # 🤝 Contributing
 
-Contributions are welcome! Here's how you can help improve OrbitOPL Toolbox:
+Contributions are welcome! Here's how you can help improve OrbitPS2 Manager:
 
 ## Ways to Contribute
 

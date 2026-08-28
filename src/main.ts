@@ -29,7 +29,7 @@ function createWindow() {
     height: size.minHeight,
     minWidth: size.minWidth,
     minHeight: size.minHeight,
-    title: `OrbitOPL Toolbox (${PackageInfo.version})`,
+    title: `OrbitPS2 Manager (${PackageInfo.version})`,
     icon: path.join(__dirname, "assets", "applogo", "icon_512x512.png"),
     frame: isMac,
     webPreferences: {
@@ -71,7 +71,7 @@ function createWindow() {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
         {
-          label: "OrbitOPL Toolbox",
+          label: "OrbitPS2 Manager",
           submenu: [
             {
               label: "Quit",
@@ -128,7 +128,7 @@ function createWindow() {
   };
 
   log.info(
-    `Launching OrbitOPL Toolbox v${PackageInfo.version} (${
+    `Launching OrbitPS2 Manager v${PackageInfo.version} (${
       serve ? "dev/serve" : "packaged"
     } mode) on ${process.platform}`
   );

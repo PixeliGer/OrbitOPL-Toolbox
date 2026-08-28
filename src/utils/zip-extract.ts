@@ -43,7 +43,7 @@ async function findFirstByExt(dir: string, ext: string): Promise<string | null> 
 export async function extractDiscZip(zipFilePath: string): Promise<ExtractedDiscZip> {
   const tempDir = path.join(
     os.tmpdir(),
-    `orbitopl-zip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    `orbitps2-zip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
   await fs.mkdir(tempDir, { recursive: true });
 

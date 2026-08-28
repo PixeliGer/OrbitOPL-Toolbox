@@ -1,5 +1,5 @@
 #
-# OrbitOPL Toolbox - first-time contributor setup (Windows)
+# OrbitPS2 Manager - first-time contributor setup (Windows)
 #
 # Detects winget (or Chocolatey) and installs everything needed to develop
 # the app, then installs the npm dependencies for both the Electron root
@@ -36,7 +36,7 @@ if (Test-Have winget) {
     Write-Info "then re-run this script. Alternatively install Node.js $NodeMajorMin+ and Git manually."
     exit 1
 }
-Write-Bold "OrbitOPL Toolbox - contributor setup (Windows)"
+Write-Bold "OrbitPS2 Manager - contributor setup (Windows)"
 Write-Info "Using package manager: $Pkg"
 
 function Install-Pkg($wingetId, $chocoId) {

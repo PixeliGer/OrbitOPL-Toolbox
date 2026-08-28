@@ -13,10 +13,10 @@ export class InfoComponent {
   readonly buildNumber = BuildInfo.buildNumber;
   readonly buildDate = new Date(BuildInfo.buildDate).toLocaleString();
   readonly author = BuildInfo.author;
-  readonly repoUrl = 'https://github.com/Luden02/OrbitOPL-Toolbox';
+  readonly repoUrl = 'https://github.com/Luden02/OrbitPS2-Manager';
   readonly artRepoUrl = 'https://github.com/Luden02/psx-ps2-opl-art-database';
   readonly licenseUrl =
-    'https://github.com/Luden02/OrbitOPL-Toolbox/blob/main/LICENSE';
+    'https://github.com/Luden02/OrbitPS2-Manager/blob/main/LICENSE';
 
   openExternal(url: string, event: Event) {
     event.preventDefault();

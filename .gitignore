@@ -97,7 +97,7 @@ dist/
 .angular/.vscode/
 /.idea/.gitignore
 /.idea/modules.xml
-/.idea/OrbitOPL-Toolbox.iml
+/.idea/OrbitPS2-Manager.iml
 /.idea/vcs.xml
 CLAUDE.md
 /.claude
