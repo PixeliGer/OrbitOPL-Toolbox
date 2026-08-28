@@ -16,7 +16,7 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 
 > Built with Electron + Angular, styled with Tailwind CSS & daisyUI. Cross-platform: **Windows, macOS, and Linux**.
 
-<img width="1316" height="747" alt="OrbitPS2 Manager — library view" src="https://github.com/user-attachments/assets/38534dc9-83c1-40ba-9a24-f2e64f5106d0" />
+<img width="1414" height="833" alt="image" src="https://github.com/user-attachments/assets/735f1984-28fb-40cd-abc2-41ef74ec187c" />
 
 # ✨ Features
 
@@ -39,7 +39,7 @@ The goal isn't to replace OPLManager, but to offer an alternative — one that's
 - **Automatic game-ID detection** by scanning the disc image (no need to look it up manually)
 - **Queued batch imports** with live progress for long operations
 
-<img width="1496" height="821" alt="OrbitPS2 Manager — import view" src="https://github.com/user-attachments/assets/e9aac4f1-821e-40fe-b37f-8a66074b1434" />
+<img width="1408" height="828" alt="Screenshot 2026-08-28 at 18 12 26" src="https://github.com/user-attachments/assets/1a118330-8e05-4783-acd4-2e6d86edebe0" />
 
 ### 🖼️ Artwork
 
